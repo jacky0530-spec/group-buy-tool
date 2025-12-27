@@ -8,162 +8,90 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     
     <style>
-        /* --- 自定義柔和配色 --- */
         :root {
-            --soft-bg: #f8f9fa; /* 整體淺灰背景 */
-            --soft-blue: #8ab6d6; /* 導覽列柔和藍 */
+            --soft-bg: #f8f9fa;
+            --navbar-bg: #8ab6d6; 
             
-            /* 商品卡片配色 (柔和薄荷綠) */
-            --card-prod-bg: #e8f5e9; 
-            --card-prod-text: #2e7d32;
-            --card-prod-btn: #66bb6a;
-
-            /* 客戶卡片配色 (柔和暖橘) */
-            --card-cust-bg: #fff3e0;
-            --card-cust-text: #ef6c00;
-            --card-cust-btn: #ffb74d;
+            /* 商品 (綠) */
+            --card-prod-bg: #e8f5e9; --card-prod-text: #2e7d32; --card-prod-btn: #66bb6a;
+            /* 客戶 (橘) */
+            --card-cust-bg: #fff3e0; --card-cust-text: #ef6c00; --card-cust-btn: #ffb74d;
+            /* 訂單 (紫) */
+            --card-order-bg: #ede7f6; --card-order-text: #512da8; --card-order-btn: #9575cd;
         }
 
-        body {
-            background-color: var(--soft-bg);
-            font-family: 'Segoe UI', Roboto, "Helvetica Neue", Arial, sans-serif;
-        }
-
-        /* 覆蓋 Bootstrap 預設導覽列顏色 */
-        .navbar-custom {
-            background-color: var(--soft-blue) !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        /* 首頁標題區域 */
-        .hero-section {
-            padding: 3rem 0 2rem;
-            text-align: center;
-            color: #555;
-        }
-        .hero-section h1 {
-            font-weight: 300;
-            letter-spacing: 1px;
-        }
-
-        /* --- 卡片設計 --- */
+        body { background-color: var(--soft-bg); font-family: 'Segoe UI', sans-serif; }
+        .navbar-custom { background-color: var(--navbar-bg) !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .hero-section { padding: 3rem 0 2rem; text-align: center; color: #555; }
+        
         .entry-card {
-            border: none;
-            border-radius: 20px; /* 更圓潤的邊角 */
-            transition: all 0.3s ease;
-            overflow: hidden;
-            height: 100%; /* 讓卡片等高 */
+            border: none; border-radius: 20px; transition: all 0.3s ease; height: 100%;
         }
+        .entry-card:hover { transform: translateY(-8px); box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important; }
+        .card-body { padding: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .card-icon { font-size: 4rem; margin-bottom: 1rem; opacity: 0.8; }
+        .card-title { font-weight: 600; margin-bottom: 0.5rem; }
+        .card-desc { margin-bottom: 1.5rem; opacity: 0.8; font-size: 0.9rem; }
+        
+        .btn-rounded { border-radius: 50px; padding: 0.6rem 2rem; font-weight: 500; border: none; transition: filter 0.2s; color: white; }
+        .btn-rounded:hover { filter: brightness(95%); color: white; }
 
-        /* 滑鼠移過時的上浮效果 */
-        .entry-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important;
-        }
-
-        .card-body {
-            padding: 2.5rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .card-icon {
-            font-size: 4.5rem;
-            margin-bottom: 1.5rem;
-            opacity: 0.8;
-        }
-
-        .card-title {
-            font-weight: 600;
-            margin-bottom: 1rem;
-        }
-
-        .card-desc {
-            margin-bottom: 2rem;
-            opacity: 0.8;
-        }
-
-        /* 按鈕樣式 */
-        .btn-rounded {
-            border-radius: 50px;
-            padding: 0.75rem 2.5rem;
-            font-weight: 500;
-            border: none;
-            transition: filter 0.2s;
-        }
-        .btn-rounded:hover {
-            filter: brightness(95%);
-        }
-
-        /* --- 個別卡片配色 --- */
-        /* 商品卡片 */
-        .card-product {
-            background-color: var(--card-prod-bg);
-            color: var(--card-prod-text);
-        }
-        .btn-product {
-            background-color: var(--card-prod-btn);
-            color: white;
-        }
-
-        /* 客戶卡片 */
-        .card-customer {
-            background-color: var(--card-cust-bg);
-            color: var(--card-cust-text);
-        }
-        .btn-customer {
-            background-color: var(--card-cust-btn);
-            color: white;
-        }
-
+        /* 配色套用 */
+        .card-product { background-color: var(--card-prod-bg); color: var(--card-prod-text); }
+        .btn-product { background-color: var(--card-prod-btn); }
+        
+        .card-customer { background-color: var(--card-cust-bg); color: var(--card-cust-text); }
+        .btn-customer { background-color: var(--card-cust-btn); }
+        
+        .card-order { background-color: var(--card-order-bg); color: var(--card-order-text); }
+        .btn-order { background-color: var(--card-order-btn); }
     </style>
 </head>
 <body>
 
 <nav class="navbar navbar-expand-lg navbar-dark navbar-custom mb-4">
     <div class="container">
-        <a class="navbar-brand fw-bold" href="index.html">
-            <i class="bi bi-shop-window me-2"></i>團購小幫手
-        </a>
+        <a class="navbar-brand fw-bold" href="index.html"><i class="bi bi-shop-window me-2"></i>團購小幫手</a>
     </div>
 </nav>
 
 <div class="container">
     <div class="hero-section mb-4">
-        <h1>歡迎回來，今天想處理什麼？</h1>
-        <p class="lead">輕鬆管理您的團購事業</p>
+        <h1>團購管理中心</h1>
+        <p class="lead">選擇功能模組開始作業</p>
     </div>
 
-    <div class="row justify-content-center g-4"> <div class="col-md-5 col-lg-4">
-            <div class="card shadow-sm entry-card card-product text-center">
+    <div class="row justify-content-center g-4">
+        
+        <div class="col-md-4">
+            <div class="card shadow-sm entry-card card-product">
                 <div class="card-body">
                     <i class="bi bi-box2-heart card-icon"></i>
                     <h3 class="card-title">商品管理</h3>
-                    <p class="card-desc">
-                        新增團購商品、設定成本與售價。<br>
-                        即時查詢商品清單與毛利估算。
-                    </p>
-                    <a href="products.html" class="btn btn-product btn-lg btn-rounded shadow-sm">
-                        <i class="bi bi-arrow-right-circle me-2"></i>進入商品管理
-                    </a>
+                    <p class="card-desc">新增商品、設定價格、管理成本</p>
+                    <a href="products.html" class="btn btn-product btn-rounded shadow-sm">進入管理</a>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-5 col-lg-4">
-            <div class="card shadow-sm entry-card card-customer text-center">
+        <div class="col-md-4">
+            <div class="card shadow-sm entry-card card-order">
+                <div class="card-body">
+                    <i class="bi bi-cart-check-fill card-icon"></i>
+                    <h3 class="card-title">訂單管理</h3>
+                    <p class="card-desc">建立訂單、計算金額、歷史查詢</p>
+                    <a href="orders.html" class="btn btn-order btn-rounded shadow-sm">進入開單</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm entry-card card-customer">
                 <div class="card-body">
                     <i class="bi bi-people-fill card-icon"></i>
                     <h3 class="card-title">客戶管理</h3>
-                    <p class="card-desc">
-                        建立客戶名單、紀錄聯絡資訊。<br>
-                        快速搜尋客戶與備註事項。
-                    </p>
-                    <a href="customers.html" class="btn btn-customer btn-lg btn-rounded shadow-sm">
-                        <i class="bi bi-arrow-right-circle me-2"></i>進入客戶管理
-                    </a>
+                    <p class="card-desc">建立名單、Line 暱稱、聯絡資訊</p>
+                    <a href="customers.html" class="btn btn-customer btn-rounded shadow-sm">進入管理</a>
                 </div>
             </div>
         </div>
@@ -171,11 +99,7 @@
     </div>
 </div>
 
-<footer class="text-center py-4 text-muted mt-5">
-    <small>© 2023 團購小幫手系統</small>
-</footer>
-
+<footer class="text-center py-4 text-muted mt-5"><small>© 2023 團購小幫手系統</small></footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 </body>
 </html>
