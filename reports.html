@@ -17,9 +17,7 @@
         body { background-color: var(--soft-bg); }
         .navbar-custom { background-color: var(--navbar-bg) !important; }
         
-        .stat-card {
-            border: none; border-radius: 15px; color: white; transition: transform 0.2s;
-        }
+        .stat-card { border: none; border-radius: 15px; color: white; transition: transform 0.2s; }
         .stat-card:hover { transform: translateY(-5px); }
         .bg-gradient-primary { background: linear-gradient(45deg, #4e73df, #224abe); }
         .bg-gradient-success { background: linear-gradient(45deg, #1cc88a, #13855c); }
@@ -30,14 +28,13 @@
         
         .table-custom thead th { background-color: var(--theme-light); color: #0277bd; border: none; }
         
-        /* 頭像樣式 */
         .avatar-circle { width: 32px; height: 32px; background-color: #e0e0e0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-size: 0.8rem; color: #555; }
-        
-        /* 數量強調樣式 */
-        .qty-highlight {
-            font-family: 'Segoe UI', sans-serif;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+        .qty-highlight { font-family: 'Segoe UI', sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+        /* 新增：可搜尋下拉選單樣式 */
+        .dropdown-menu-custom { max-height: 300px; overflow-y: auto; }
+        .dropdown-item { cursor: pointer; padding: 8px 16px; }
+        .dropdown-item:active { background-color: var(--theme-light); color: #000; }
     </style>
 </head>
 <body>
@@ -144,16 +141,26 @@
                 <i class="bi bi-search-heart text-info fs-4 me-2"></i>
                 <h5 class="mb-0 fw-bold text-dark">單一商品買家追蹤</h5>
             </div>
-            <div class="w-50">
-                <select id="selectProductDetail" class="form-select border-info">
-                    <option value="">請選擇要查詢的商品...</option>
-                </select>
+            
+            <div class="w-50 position-relative">
+                <div class="dropdown">
+                    <button class="btn btn-outline-info w-100 text-start d-flex justify-content-between align-items-center dropdown-toggle" 
+                            type="button" id="prodDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span>請選擇或搜尋商品...</span>
+                    </button>
+                    <div class="dropdown-menu w-100 p-2 dropdown-menu-custom" aria-labelledby="prodDropdownBtn">
+                        <input type="text" class="form-control mb-2" id="prodSearchInput" placeholder="輸入關鍵字搜尋..." autocomplete="off">
+                        <div id="prodDropdownList">
+                            </div>
+                    </div>
+                </div>
             </div>
         </div>
+        
         <div class="card-body">
             <div id="productDetailInfo" class="text-center text-muted py-5">
                 <i class="bi bi-basket display-4 d-block mb-3 opacity-25"></i>
-                請從右上方選擇商品，即可查看誰買了這個東西
+                請從右上方搜尋並選擇商品，即可查看誰買了這個東西
             </div>
             
             <div id="productDetailTableContainer" class="d-none">
@@ -180,6 +187,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -194,7 +202,9 @@
     let productsNameList = [];
     let chartInstanceTrend = null;
     let chartInstanceTop = null;
+    let currentSelectedProdId = null; // 記錄目前選中的商品ID
 
+    // DOM
     const filterMode = document.getElementById('filterMode');
     const monthPicker = document.getElementById('monthPickerGroup');
     const rangePicker = document.getElementById('rangePickerGroup');
@@ -203,7 +213,11 @@
     const inputEnd = document.getElementById('inputEnd');
     const dateLabel = document.getElementById('dateLabel');
     
-    const selectProductDetail = document.getElementById('selectProductDetail');
+    // 搜尋下拉 DOM
+    const prodDropdownBtn = document.getElementById('prodDropdownBtn');
+    const prodSearchInput = document.getElementById('prodSearchInput');
+    const prodDropdownList = document.getElementById('prodDropdownList');
+    
     const productDetailInfo = document.getElementById('productDetailInfo');
     const productDetailTableContainer = document.getElementById('productDetailTableContainer');
     const detailTableBody = document.getElementById('detailTableBody');
@@ -211,6 +225,7 @@
     const detailTotalPeople = document.getElementById('detailTotalPeople');
 
     async function initData() {
+        // A. 抓商品資料
         const prodSnap = await getDocs(collection(db, "products"));
         productsNameList = [];
         
@@ -220,10 +235,10 @@
             productsNameList.push({ id: doc.id, name: data.name });
         });
 
-        productsNameList.forEach(p => {
-            selectProductDetail.innerHTML += `<option value="${p.id}">${p.name}</option>`;
-        });
+        // 初始化下拉選單列表 (填入所有商品)
+        renderDropdownItems(productsNameList);
 
+        // B. 抓所有訂單
         const orderSnap = await getDocs(query(collection(db, "orders"), orderBy("orderDate", "asc")));
         rawOrders = orderSnap.docs.map(doc => ({
             id: doc.id,
@@ -234,6 +249,112 @@
         updateDashboard(rawOrders);
     }
 
+    // --- 新增：下拉搜尋邏輯 ---
+    function renderDropdownItems(items) {
+        prodDropdownList.innerHTML = '';
+        if (items.length === 0) {
+            prodDropdownList.innerHTML = '<div class="text-muted small p-2">找不到相關商品</div>';
+            return;
+        }
+
+        items.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'dropdown-item';
+            div.textContent = p.name;
+            div.onclick = () => {
+                selectProduct(p.id, p.name);
+            };
+            prodDropdownList.appendChild(div);
+        });
+    }
+
+    // 搜尋框輸入事件
+    prodSearchInput.addEventListener('input', (e) => {
+        const keyword = e.target.value.toLowerCase();
+        const filtered = productsNameList.filter(p => p.name.toLowerCase().includes(keyword));
+        renderDropdownItems(filtered);
+    });
+
+    // 選擇商品後的動作
+    function selectProduct(id, name) {
+        currentSelectedProdId = id;
+        prodDropdownBtn.querySelector('span').textContent = name; // 更新按鈕文字
+        // 這裡需要手動關閉 dropdown (因為我們是用 custom logic)
+        // 但 Bootstrap 的 behavior 是點擊 item 後通常不會自動關，這裡讓它自然運作或用 JS 關閉皆可
+        // 為了簡單，我們直接執行分析邏輯
+        analyzeProductBuyers(id);
+    }
+
+    // 分析邏輯 (原有的 change 事件改寫)
+    function analyzeProductBuyers(prodId) {
+        if (!prodId) return;
+
+        const buyersMap = {}; 
+        let grandTotalQty = 0;
+
+        rawOrders.forEach(order => {
+            if(!order.items) return;
+            const targetItem = order.items.find(i => i.id === prodId);
+            
+            if(targetItem) {
+                const cName = order.customerName;
+                const qty = targetItem.qty;
+                const amount = targetItem.price * qty;
+
+                if(!buyersMap[cName]) {
+                    buyersMap[cName] = { qty: 0, lastDate: order.dateObj, totalSpent: 0 };
+                }
+                buyersMap[cName].qty += qty;
+                buyersMap[cName].totalSpent += amount;
+                if (order.dateObj > buyersMap[cName].lastDate) {
+                    buyersMap[cName].lastDate = order.dateObj;
+                }
+                grandTotalQty += qty;
+            }
+        });
+
+        const buyersArray = Object.entries(buyersMap).map(([name, data]) => ({ name, ...data }));
+        buyersArray.sort((a, b) => b.qty - a.qty);
+
+        renderDetailTable(buyersArray, grandTotalQty);
+    }
+
+    function renderDetailTable(data, totalQty) {
+        productDetailInfo.classList.add('d-none');
+        productDetailTableContainer.classList.remove('d-none');
+        
+        detailTotalQty.innerText = totalQty;
+        detailTotalPeople.innerText = data.length;
+        detailTableBody.innerHTML = '';
+
+        if(data.length === 0) {
+            detailTableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">尚未有銷售紀錄</td></tr>';
+            return;
+        }
+
+        data.forEach(buyer => {
+            const dateStr = buyer.lastDate.toLocaleDateString();
+            const avatarLetter = buyer.name.charAt(0);
+            
+            detailTableBody.innerHTML += `
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <span class="avatar-circle">${avatarLetter}</span>
+                            <span class="fw-bold fs-5">${buyer.name}</span>
+                        </div>
+                    </td>
+                    <td class="text-center">
+                        <span class="fs-3 fw-bolder text-primary qty-highlight">${buyer.qty}</span>
+                    </td>
+                    <td class="text-center text-muted small">${dateStr}</td>
+                    <td class="text-end fw-medium">$${buyer.totalSpent}</td>
+                </tr>
+            `;
+        });
+    }
+
+    // --- 以下為 Dashboard 原有邏輯 (不變) ---
     filterMode.addEventListener('change', () => {
         const mode = filterMode.value;
         monthPicker.classList.add('d-none');
@@ -283,7 +404,6 @@
 
     function updateDashboard(orders) {
         let totalRevenue = 0, totalProfit = 0, productSales = {}, trendData = {};
-
         orders.forEach(order => {
             totalRevenue += order.totalAmount;
             let orderCost = 0;
@@ -295,11 +415,9 @@
                 });
             }
             totalProfit += (order.totalAmount - orderCost);
-
             const d = order.dateObj;
             const mode = filterMode.value;
             const key = (mode === 'all') ? `${d.getFullYear()}/${d.getMonth()+1}` : `${d.getMonth()+1}/${d.getDate()}`;
-            
             if(!trendData[key]) trendData[key] = 0;
             trendData[key] += order.totalAmount;
         });
@@ -307,7 +425,6 @@
         document.getElementById('totalRevenue').innerText = totalRevenue.toLocaleString();
         document.getElementById('totalProfit').innerText = totalProfit.toLocaleString();
         document.getElementById('totalOrders').innerText = orders.length;
-
         renderCharts(trendData, productSales);
     }
 
@@ -317,117 +434,28 @@
 
         const ctxTrend = document.getElementById('trendChart').getContext('2d');
         const sortedKeys = Object.keys(trendData).sort((a,b) => new Date(a.replace('/','-')) - new Date(b.replace('/','-')));
-
         chartInstanceTrend = new Chart(ctxTrend, {
             type: 'line',
             data: {
                 labels: Object.keys(trendData),
-                datasets: [{
-                    label: '營收 ($)',
-                    data: Object.values(trendData),
-                    borderColor: '#29b6f6',
-                    backgroundColor: 'rgba(41, 182, 246, 0.1)',
-                    tension: 0.3, fill: true
-                }]
+                datasets: [{ label: '營收 ($)', data: Object.values(trendData), borderColor: '#29b6f6', backgroundColor: 'rgba(41, 182, 246, 0.1)', tension: 0.3, fill: true }]
             },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
 
         const ctxTop = document.getElementById('topProdChart').getContext('2d');
         const sortedProds = Object.entries(productSales).sort((a, b) => b[1] - a[1]).slice(0, 5);
-
         chartInstanceTop = new Chart(ctxTop, {
             type: 'bar',
             data: {
                 labels: sortedProds.map(i => i[0]),
-                datasets: [{
-                    label: '數量',
-                    data: sortedProds.map(i => i[1]),
-                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'],
-                    borderRadius: 4
-                }]
+                datasets: [{ label: '數量', data: sortedProds.map(i => i[1]), backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'], borderRadius: 4 }]
             },
             options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } }
         });
     }
 
-    // 4. 單一商品買家追蹤邏輯
-    selectProductDetail.addEventListener('change', () => {
-        const prodId = selectProductDetail.value;
-        if (!prodId) {
-            productDetailInfo.classList.remove('d-none');
-            productDetailTableContainer.classList.add('d-none');
-            return;
-        }
-
-        const buyersMap = {}; 
-        let grandTotalQty = 0;
-
-        rawOrders.forEach(order => {
-            if(!order.items) return;
-            const targetItem = order.items.find(i => i.id === prodId);
-            
-            if(targetItem) {
-                const cName = order.customerName;
-                const qty = targetItem.qty;
-                const amount = targetItem.price * qty;
-
-                if(!buyersMap[cName]) {
-                    buyersMap[cName] = { qty: 0, lastDate: order.dateObj, totalSpent: 0 };
-                }
-                buyersMap[cName].qty += qty;
-                buyersMap[cName].totalSpent += amount;
-                if (order.dateObj > buyersMap[cName].lastDate) {
-                    buyersMap[cName].lastDate = order.dateObj;
-                }
-                grandTotalQty += qty;
-            }
-        });
-
-        const buyersArray = Object.entries(buyersMap).map(([name, data]) => ({ name, ...data }));
-        buyersArray.sort((a, b) => b.qty - a.qty);
-
-        renderDetailTable(buyersArray, grandTotalQty);
-    });
-
-    function renderDetailTable(data, totalQty) {
-        productDetailInfo.classList.add('d-none');
-        productDetailTableContainer.classList.remove('d-none');
-        
-        detailTotalQty.innerText = totalQty;
-        detailTotalPeople.innerText = data.length;
-        detailTableBody.innerHTML = '';
-
-        if(data.length === 0) {
-            detailTableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">尚未有銷售紀錄</td></tr>';
-            return;
-        }
-
-        data.forEach(buyer => {
-            const dateStr = buyer.lastDate.toLocaleDateString();
-            const avatarLetter = buyer.name.charAt(0);
-            
-            detailTableBody.innerHTML += `
-                <tr>
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <span class="avatar-circle">${avatarLetter}</span>
-                            <span class="fw-bold fs-5">${buyer.name}</span>
-                        </div>
-                    </td>
-                    <td class="text-center">
-                        <span class="fs-3 fw-bolder text-primary qty-highlight">${buyer.qty}</span>
-                    </td>
-                    <td class="text-center text-muted small">${dateStr}</td>
-                    <td class="text-end fw-medium">$${buyer.totalSpent}</td>
-                </tr>
-            `;
-        });
-    }
-
     initData();
-
 </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
