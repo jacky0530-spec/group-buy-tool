@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>團購系統 - 訂單管理</title>
+    <title>團購系統 - 訂單與結帳管理</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     
@@ -28,9 +28,21 @@
         .btn-theme { background-color: var(--theme-color); color: white; border: none; }
         .btn-theme:hover { background-color: var(--theme-dark); color: white; }
         
-        /* 購物車列表樣式 */
+        /* 購物車與列表樣式 */
         .cart-item { border-bottom: 1px dashed #ccc; padding: 8px 0; display: flex; justify-content: space-between; align-items: center; }
-        .cart-total { font-size: 1.2rem; font-weight: bold; color: var(--theme-dark); margin-top: 15px; text-align: right; }
+        
+        /* 右側結帳面板 */
+        .checkout-panel {
+            background-color: #fff;
+            border-top: 2px solid var(--theme-color);
+            padding: 15px;
+            position: sticky;
+            bottom: 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+        .order-row.selected {
+            background-color: #f3e5f5; /* 選中時變色 */
+        }
     </style>
 </head>
 <body>
@@ -51,18 +63,17 @@
     </div>
 </nav>
 
-<div class="container">
-    <div class="row">
-        <div class="col-md-5 mb-4">
+<div class="container-fluid px-4"> <div class="row">
+        <div class="col-lg-4 mb-4">
             <div class="card shadow-sm h-100">
                 <div class="card-header card-header-custom">
-                    <i class="bi bi-cart-plus me-2"></i>建立新訂單
+                    <i class="bi bi-cart-plus me-2"></i>開立新訂單
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label text-muted small">選擇客戶</label>
-                        <select id="selectCustomer" class="form-select">
-                            <option value="">載入中...</option>
+                        <label class="form-label text-muted small">選擇客戶 (自動篩選右側)</label>
+                        <select id="selectCustomer" class="form-select border-primary">
+                            <option value="">請選擇客戶...</option>
                         </select>
                     </div>
 
@@ -82,70 +93,69 @@
                             </div>
                             <div class="col-6 d-flex align-items-end">
                                 <button type="button" id="btnAddToCart" class="btn btn-outline-secondary w-100">
-                                    <i class="bi bi-plus-lg"></i> 加入清單
+                                    <i class="bi bi-plus-lg"></i> 加入
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <h6 class="text-muted small mt-4"><i class="bi bi-basket me-1"></i>訂單內容</h6>
+                    <h6 class="text-muted small mt-4"><i class="bi bi-basket me-1"></i>本次購買內容</h6>
                     <div id="cartList" class="mb-3" style="min-height: 100px;">
                         <div class="text-center text-muted py-4 small">尚未加入商品</div>
                     </div>
                     
-                    <div class="cart-total">
-                        總金額: $<span id="cartTotalDisplay">0</span>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted">本單金額:</span>
+                        <h4 class="mb-0 fw-bold text-dark">$<span id="cartTotalDisplay">0</span></h4>
                     </div>
 
-                    <div class="d-grid gap-2 mt-3">
-                        <button type="button" id="btnSubmitOrder" class="btn btn-theme" disabled>確認結帳</button>
+                    <div class="d-grid gap-2">
+                        <button type="button" id="btnSubmitOrder" class="btn btn-theme" disabled>確認下單</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-7">
-            <div class="card shadow-sm h-100">
+        <div class="col-lg-8">
+            <div class="card shadow-sm h-100 d-flex flex-column">
                 <div class="card-header card-header-custom d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-clock-history me-2"></i>訂單紀錄</span>
+                    <span><i class="bi bi-clock-history me-2"></i><span id="rightPanelTitle">所有訂單紀錄</span></span>
+                    <button class="btn btn-sm btn-outline-dark" id="btnShowAll">顯示全部</button>
                 </div>
-                <div class="card-body p-0">
+                
+                <div class="card-body p-0 flex-grow-1" style="overflow-y: auto; max-height: 600px;">
                     <table class="table table-hover mb-0 align-middle">
-                        <thead class="table-light">
+                        <thead class="table-light sticky-top">
                             <tr>
-                                <th class="ps-4">日期</th>
+                                <th class="ps-3" style="width: 40px;"><input type="checkbox" id="checkAll" disabled></th>
+                                <th>日期</th>
                                 <th>客戶</th>
-                                <th>總額</th>
-                                <th class="text-end pe-4">詳情</th>
+                                <th>內容摘要</th>
+                                <th>金額</th>
+                                <th class="text-end pe-3">操作</th>
                             </tr>
                         </thead>
                         <tbody id="orderTableBody">
                             </tbody>
                     </table>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<div class="modal fade" id="orderModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">訂單詳情</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p><strong>客戶：</strong> <span id="modalCustomer"></span></p>
-                <p><strong>時間：</strong> <span id="modalDate"></span></p>
-                <hr>
-                <h6>購買項目：</h6>
-                <ul id="modalItems" class="list-group list-group-flush"></ul>
-                <h5 class="text-end mt-3 text-danger">總計：$<span id="modalTotal"></span></h5>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-danger btn-sm" id="btnDeleteOrder">刪除訂單</button>
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">關閉</button>
+                <div class="checkout-panel bg-light">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <small class="text-muted">已勾選 <span id="selectedCount" class="fw-bold text-primary">0</span> 筆訂單</small>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div class="d-flex justify-content-end align-items-center gap-3">
+                                <span class="fs-5">總計收款: <strong class="text-danger fs-3">$<span id="selectedTotal">0</span></strong></span>
+                                <button class="btn btn-outline-danger btn-sm" id="btnBatchDelete" disabled>
+                                    <i class="bi bi-trash"></i> 刪除勾選
+                                </button>
+                                </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -153,7 +163,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { firebaseConfig } from './firebase-config.js';
 
     const app = initializeApp(firebaseConfig);
@@ -163,8 +173,8 @@
     let allProducts = [];
     let allCustomers = [];
     let currentCart = [];
-    let currentOrders = [];
-    let selectedOrderId = null; // 為了刪除用
+    let allOrders = []; // 存放所有抓下來的訂單
+    let displayedOrders = []; // 目前顯示在畫面上的訂單
 
     // DOM 元素
     const selectCust = document.getElementById('selectCustomer');
@@ -174,10 +184,15 @@
     const totalDisplay = document.getElementById('cartTotalDisplay');
     const submitBtn = document.getElementById('btnSubmitOrder');
     
-    // Modal 元素
-    const orderModal = new bootstrap.Modal(document.getElementById('orderModal'));
+    // 右側面板元素
+    const rightPanelTitle = document.getElementById('rightPanelTitle');
+    const tableBody = document.getElementById('orderTableBody');
+    const checkAll = document.getElementById('checkAll');
+    const selectedCountEl = document.getElementById('selectedCount');
+    const selectedTotalEl = document.getElementById('selectedTotal');
+    const btnBatchDelete = document.getElementById('btnBatchDelete');
 
-    // 1. 初始化：載入客戶與商品資料
+    // 1. 初始化
     async function initData() {
         // 載入客戶
         const qCust = query(collection(db, "customers"), orderBy("joinedAt", "desc"));
@@ -200,37 +215,146 @@
             selectProd.innerHTML += `<option value="${p.id}">${p.name} ($${p.price})</option>`;
         });
 
-        // 載入歷史訂單
-        loadOrders();
+        // 載入訂單
+        await loadOrders();
     }
 
-    // 2. 加入購物車功能
+    // 2. 監聽：客戶選單改變 -> 自動篩選右側列表
+    selectCust.addEventListener('change', () => {
+        const custId = selectCust.value;
+        if (custId) {
+            const customer = allCustomers.find(c => c.id === custId);
+            rightPanelTitle.innerText = `客戶：${customer.name} 的歷史訂單`;
+            rightPanelTitle.classList.add('text-primary');
+            filterOrders(custId);
+        } else {
+            // 如果清空選擇，顯示全部
+            rightPanelTitle.innerText = "所有訂單紀錄";
+            rightPanelTitle.classList.remove('text-primary');
+            filterOrders(null);
+        }
+    });
+
+    document.getElementById('btnShowAll').addEventListener('click', () => {
+        selectCust.value = ""; // 清空左側選擇
+        rightPanelTitle.innerText = "所有訂單紀錄";
+        rightPanelTitle.classList.remove('text-primary');
+        filterOrders(null);
+    });
+
+    // 3. 讀取與渲染訂單
+    async function loadOrders() {
+        const q = query(collection(db, "orders"), orderBy("orderDate", "desc"));
+        const snapshot = await getDocs(q);
+        allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // 根據目前選單狀態決定顯示什麼
+        const currentCustId = selectCust.value;
+        filterOrders(currentCustId || null);
+    }
+
+    function filterOrders(custId) {
+        if (custId) {
+            displayedOrders = allOrders.filter(o => o.customerId === custId);
+        } else {
+            displayedOrders = allOrders;
+        }
+        renderOrderTable();
+    }
+
+    function renderOrderTable() {
+        tableBody.innerHTML = '';
+        checkAll.disabled = displayedOrders.length === 0;
+        checkAll.checked = false;
+        updateCheckoutSummary(); // 重置計算
+
+        if (displayedOrders.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">無相關訂單資料</td></tr>';
+            return;
+        }
+
+        displayedOrders.forEach(order => {
+            const dateObj = order.orderDate.toDate(); 
+            const dateStr = `${dateObj.getMonth()+1}/${dateObj.getDate()} <small class="text-muted">${dateObj.getHours()}:${String(dateObj.getMinutes()).padStart(2, '0')}</small>`;
+            
+            // 摘要：只顯示前兩個商品名稱
+            let summary = order.items.map(i => i.name).slice(0, 2).join(", ");
+            if (order.items.length > 2) summary += `...等${order.items.length}項`;
+
+            const tr = document.createElement('tr');
+            tr.className = 'order-row';
+            tr.innerHTML = `
+                <td class="ps-3"><input type="checkbox" class="form-check-input order-check" value="${order.id}" data-amount="${order.totalAmount}"></td>
+                <td>${dateStr}</td>
+                <td>${order.customerName}</td>
+                <td class="text-muted small">${summary}</td>
+                <td class="fw-bold text-dark">$${order.totalAmount}</td>
+                <td class="text-end pe-3">
+                    <button class="btn btn-sm btn-outline-danger btn-delete-one" data-id="${order.id}"><i class="bi bi-trash"></i></button>
+                </td>
+            `;
+            tableBody.appendChild(tr);
+        });
+
+        // 綁定單筆刪除
+        document.querySelectorAll('.btn-delete-one').forEach(btn => {
+            btn.addEventListener('click', () => deleteSingleOrder(btn.dataset.id));
+        });
+
+        // 綁定 Checkbox 事件 (計算總額)
+        document.querySelectorAll('.order-check').forEach(chk => {
+            chk.addEventListener('change', updateCheckoutSummary);
+        });
+    }
+
+    // 4. 計算勾選總金額
+    function updateCheckoutSummary() {
+        const checkboxes = document.querySelectorAll('.order-check:checked');
+        let total = 0;
+        let count = 0;
+
+        checkboxes.forEach(chk => {
+            total += parseInt(chk.dataset.amount);
+            count++;
+            // 讓選中的行變色
+            chk.closest('tr').classList.add('selected');
+        });
+
+        // 處理未選中的行移除顏色
+        document.querySelectorAll('.order-check:not(:checked)').forEach(chk => {
+            chk.closest('tr').classList.remove('selected');
+        });
+
+        selectedCountEl.innerText = count;
+        selectedTotalEl.innerText = total;
+        btnBatchDelete.disabled = count === 0;
+    }
+
+    // 全選功能
+    checkAll.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+        document.querySelectorAll('.order-check').forEach(chk => {
+            chk.checked = isChecked;
+        });
+        updateCheckoutSummary();
+    });
+
+    // 5. 購物車邏輯 (左側)
     document.getElementById('btnAddToCart').addEventListener('click', () => {
         const prodId = selectProd.value;
         const qty = parseInt(inputQty.value);
-
         if (!prodId || qty <= 0) return;
-
-        const product = allProducts.find(p => p.id === prodId);
         
-        // 檢查是否已在車內
+        const product = allProducts.find(p => p.id === prodId);
         const existing = currentCart.find(item => item.id === prodId);
-        if (existing) {
-            existing.qty += qty;
-        } else {
-            currentCart.push({
-                id: product.id,
-                name: product.name,
-                price: product.price,
-                qty: qty
-            });
-        }
+        
+        if (existing) existing.qty += qty;
+        else currentCart.push({ id: product.id, name: product.name, price: product.price, qty: qty });
 
         renderCart();
-        inputQty.value = 1; // 重置數量
+        inputQty.value = 1;
     });
 
-    // 3. 渲染購物車
     function renderCart() {
         if (currentCart.length === 0) {
             cartList.innerHTML = '<div class="text-center text-muted py-4 small">尚未加入商品</div>';
@@ -238,152 +362,79 @@
             submitBtn.disabled = true;
             return;
         }
-
         let html = '';
         let total = 0;
-
         currentCart.forEach((item, index) => {
-            const subtotal = item.price * item.qty;
-            total += subtotal;
+            total += item.price * item.qty;
             html += `
                 <div class="cart-item">
-                    <div>
-                        <strong>${item.name}</strong> <br>
-                        <span class="text-muted small">$${item.price} x ${item.qty}</span>
-                    </div>
-                    <div class="text-end">
-                        <div>$${subtotal}</div>
-                        <a href="#" class="text-danger small text-decoration-none" onclick="removeCartItem(${index})">刪除</a>
-                    </div>
+                    <div><strong>${item.name}</strong> <small class="text-muted">x${item.qty}</small></div>
+                    <div>$${item.price * item.qty} <i class="bi bi-x text-danger" style="cursor:pointer" onclick="window.removeCartItem(${index})"></i></div>
                 </div>
             `;
         });
-
         cartList.innerHTML = html;
         totalDisplay.innerText = total;
         submitBtn.disabled = false;
         
-        // 讓動態產生的刪除連結生效 (簡單做法: 把函數掛在 window 上)
-        window.removeCartItem = (index) => {
-            currentCart.splice(index, 1);
-            renderCart();
-        };
+        window.removeCartItem = (index) => { currentCart.splice(index, 1); renderCart(); };
     }
 
-    // 4. 提交訂單
+    // 6. 送出訂單
     submitBtn.addEventListener('click', async () => {
         const custId = selectCust.value;
-        if (!custId) {
-            alert("請選擇客戶！");
-            return;
-        }
-
+        if (!custId) { alert("請選擇客戶！"); return; }
         const customer = allCustomers.find(c => c.id === custId);
         const total = parseInt(totalDisplay.innerText);
 
-        // 鎖定按鈕
         submitBtn.disabled = true;
-        submitBtn.innerText = "處理中...";
-
         try {
             await addDoc(collection(db, "orders"), {
                 customerId: customer.id,
-                customerName: customer.name, // 存快照，避免客戶改名後紀錄亂掉
+                customerName: customer.name,
                 items: currentCart,
                 totalAmount: total,
                 orderDate: new Date()
             });
 
-            // 清空畫面
             currentCart = [];
             renderCart();
-            selectCust.value = "";
-            loadOrders(); // 刷新列表
             
-            submitBtn.innerText = "確認結帳"; // 恢復按鈕文字 (disabled 會在 renderCart 被處理)
-
+            // 重新讀取訂單，並保持在該客戶的過濾狀態
+            await loadOrders(); 
+            
         } catch (error) {
             console.error("Error:", error);
-            alert("訂單建立失敗");
+            alert("失敗");
+        } finally {
             submitBtn.disabled = false;
-            submitBtn.innerText = "確認結帳";
         }
     });
 
-    // 5. 讀取與顯示歷史訂單
-    async function loadOrders() {
-        const q = query(collection(db, "orders"), orderBy("orderDate", "desc"));
-        const snapshot = await getDocs(q);
-        currentOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        const tbody = document.getElementById('orderTableBody');
-        tbody.innerHTML = '';
-
-        currentOrders.forEach(order => {
-            // 格式化日期
-            const dateObj = order.orderDate.toDate(); 
-            const dateStr = `${dateObj.getMonth()+1}/${dateObj.getDate()} ${dateObj.getHours()}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td class="ps-4 text-secondary small">${dateStr}</td>
-                <td class="fw-bold text-dark">${order.customerName}</td>
-                <td class="text-success fw-bold">$${order.totalAmount}</td>
-                <td class="text-end pe-4">
-                    <button class="btn btn-sm btn-outline-primary btn-view" data-id="${order.id}">
-                        <i class="bi bi-eye"></i>
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-
-        // 綁定查看詳情按鈕
-        document.querySelectorAll('.btn-view').forEach(btn => {
-            btn.addEventListener('click', () => showOrderDetail(btn.dataset.id));
-        });
+    // 7. 刪除邏輯
+    async function deleteSingleOrder(id) {
+        if(confirm("確定刪除此筆訂單？")) {
+            await deleteDoc(doc(db, "orders", id));
+            await loadOrders();
+        }
     }
 
-    // 6. 顯示詳情 Modal
-    function showOrderDetail(id) {
-        const order = currentOrders.find(o => o.id === id);
-        if(!order) return;
+    btnBatchDelete.addEventListener('click', async () => {
+        const checkboxes = document.querySelectorAll('.order-check:checked');
+        if(checkboxes.length === 0) return;
 
-        selectedOrderId = id; // 記錄當前選中的訂單ID供刪除用
-
-        document.getElementById('modalCustomer').innerText = order.customerName;
-        document.getElementById('modalDate').innerText = order.orderDate.toDate().toLocaleString();
-        document.getElementById('modalTotal').innerText = order.totalAmount;
-
-        const list = document.getElementById('modalItems');
-        list.innerHTML = '';
-        order.items.forEach(item => {
-            list.innerHTML += `
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <div>${item.name} <span class="text-muted small">x${item.qty}</span></div>
-                    <span>$${item.price * item.qty}</span>
-                </li>
-            `;
-        });
-
-        orderModal.show();
-    }
-
-    // 7. 刪除訂單
-    document.getElementById('btnDeleteOrder').addEventListener('click', async () => {
-        if(!selectedOrderId) return;
-        if(confirm("確定要刪除這筆訂單嗎？刪除後無法復原。")) {
-            try {
-                await deleteDoc(doc(db, "orders", selectedOrderId));
-                orderModal.hide();
-                loadOrders();
-            } catch(e) {
-                alert("刪除失敗");
-            }
+        if(confirm(`確定要刪除選中的 ${checkboxes.length} 筆訂單嗎？`)) {
+            const promises = [];
+            checkboxes.forEach(chk => {
+                promises.push(deleteDoc(doc(db, "orders", chk.value)));
+            });
+            
+            await Promise.all(promises);
+            alert("刪除成功");
+            await loadOrders();
         }
     });
 
-    // 啟動
     initData();
 
 </script>
