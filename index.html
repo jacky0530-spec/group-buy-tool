@@ -18,6 +18,8 @@
             --card-cust-bg: #fff3e0; --card-cust-text: #ef6c00; --card-cust-btn: #ffb74d;
             /* 訂單 (紫) */
             --card-order-bg: #ede7f6; --card-order-text: #512da8; --card-order-btn: #9575cd;
+            /* 報表 (藍) */
+            --card-rept-bg: #e3f2fd; --card-rept-text: #0277bd; --card-rept-btn: #29b6f6;
         }
 
         body { background-color: var(--soft-bg); font-family: 'Segoe UI', sans-serif; }
@@ -29,7 +31,7 @@
         }
         .entry-card:hover { transform: translateY(-8px); box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important; }
         .card-body { padding: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-        .card-icon { font-size: 4rem; margin-bottom: 1rem; opacity: 0.8; }
+        .card-icon { font-size: 3.5rem; margin-bottom: 1rem; opacity: 0.8; }
         .card-title { font-weight: 600; margin-bottom: 0.5rem; }
         .card-desc { margin-bottom: 1.5rem; opacity: 0.8; font-size: 0.9rem; }
         
@@ -45,6 +47,9 @@
         
         .card-order { background-color: var(--card-order-bg); color: var(--card-order-text); }
         .btn-order { background-color: var(--card-order-btn); }
+
+        .card-report { background-color: var(--card-rept-bg); color: var(--card-rept-text); }
+        .btn-report { background-color: var(--card-rept-btn); }
     </style>
 </head>
 <body>
@@ -56,42 +61,53 @@
 </nav>
 
 <div class="container">
-    <div class="hero-section mb-4">
+    <div class="hero-section mb-3">
         <h1>團購管理中心</h1>
-        <p class="lead">選擇功能模組開始作業</p>
+        <p class="lead">全方位掌握您的團購事業</p>
     </div>
 
-    <div class="row justify-content-center g-4">
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4 justify-content-center">
         
-        <div class="col-md-4">
+        <div class="col">
             <div class="card shadow-sm entry-card card-product">
                 <div class="card-body">
                     <i class="bi bi-box2-heart card-icon"></i>
-                    <h3 class="card-title">商品管理</h3>
-                    <p class="card-desc">新增商品、設定價格、管理成本</p>
+                    <h4 class="card-title">商品管理</h4>
+                    <p class="card-desc">建立商品庫<br>設定成本與售價</p>
                     <a href="products.html" class="btn btn-product btn-rounded shadow-sm">進入管理</a>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-4">
+        <div class="col">
+            <div class="card shadow-sm entry-card card-customer">
+                <div class="card-body">
+                    <i class="bi bi-people-fill card-icon"></i>
+                    <h4 class="card-title">客戶管理</h4>
+                    <p class="card-desc">維護客戶名單<br>Line 暱稱對照</p>
+                    <a href="customers.html" class="btn btn-customer btn-rounded shadow-sm">進入管理</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
             <div class="card shadow-sm entry-card card-order">
                 <div class="card-body">
                     <i class="bi bi-cart-check-fill card-icon"></i>
-                    <h3 class="card-title">訂單管理</h3>
-                    <p class="card-desc">建立訂單、計算金額、歷史查詢</p>
+                    <h4 class="card-title">訂單管理</h4>
+                    <p class="card-desc">開立訂單與結帳<br>出貨狀態追蹤</p>
                     <a href="orders.html" class="btn btn-order btn-rounded shadow-sm">進入開單</a>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="card shadow-sm entry-card card-customer">
+        <div class="col">
+            <div class="card shadow-sm entry-card card-report">
                 <div class="card-body">
-                    <i class="bi bi-people-fill card-icon"></i>
-                    <h3 class="card-title">客戶管理</h3>
-                    <p class="card-desc">建立名單、Line 暱稱、聯絡資訊</p>
-                    <a href="customers.html" class="btn btn-customer btn-rounded shadow-sm">進入管理</a>
+                    <i class="bi bi-graph-up-arrow card-icon"></i>
+                    <h4 class="card-title">銷售報表</h4>
+                    <p class="card-desc">查看營收趨勢<br>熱銷商品分析</p>
+                    <a href="reports.html" class="btn btn-report btn-rounded shadow-sm">查看報表</a>
                 </div>
             </div>
         </div>
