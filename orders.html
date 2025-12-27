@@ -45,11 +45,12 @@
         .receipt-card { border: 1px solid #eee; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; }
         .receipt-header { background-color: #f8f9fa; padding: 8px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
 
-        /* 新增：搜尋選單樣式 */
+        /* 搜尋選單樣式優化 */
         .dropdown-menu-scroll { max-height: 300px; overflow-y: auto; }
-        .dropdown-item-custom { cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #f8f9fa; }
+        .dropdown-item-custom { cursor: pointer; padding: 10px 15px; border-bottom: 1px solid #f1f1f1; transition: background 0.2s; }
         .dropdown-item-custom:hover { background-color: var(--theme-light); color: var(--theme-dark); }
-        .dropdown-item-custom small { display: block; color: #888; font-size: 0.8rem; }
+        .dropdown-item-custom small { display: block; color: #888; font-size: 0.85rem; margin-top: 2px; }
+        .search-box-container { padding: 10px; background-color: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 10; }
     </style>
 </head>
 <body>
@@ -87,8 +88,10 @@
                                     type="button" id="custDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
                                 <span id="custSelectedText">請選擇或搜尋客戶...</span>
                             </button>
-                            <div class="dropdown-menu w-100 p-2 dropdown-menu-scroll" aria-labelledby="custDropdownBtn">
-                                <input type="text" class="form-control mb-2" id="custSearchInput" placeholder="輸入姓名或Line暱稱..." autocomplete="off">
+                            <div class="dropdown-menu w-100 p-0 dropdown-menu-scroll" aria-labelledby="custDropdownBtn">
+                                <div class="search-box-container" onclick="event.stopPropagation()">
+                                    <input type="text" class="form-control" id="custSearchInput" placeholder="輸入姓名或Line暱稱..." autocomplete="off">
+                                </div>
                                 <div id="custListContainer">
                                     </div>
                             </div>
@@ -105,8 +108,10 @@
                                         type="button" id="prodDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
                                     <span id="prodSelectedText">請選擇或搜尋商品...</span>
                                 </button>
-                                <div class="dropdown-menu w-100 p-2 dropdown-menu-scroll" aria-labelledby="prodDropdownBtn">
-                                    <input type="text" class="form-control mb-2" id="prodSearchInput" placeholder="輸入商品名稱..." autocomplete="off">
+                                <div class="dropdown-menu w-100 p-0 dropdown-menu-scroll" aria-labelledby="prodDropdownBtn">
+                                    <div class="search-box-container" onclick="event.stopPropagation()">
+                                        <input type="text" class="form-control" id="prodSearchInput" placeholder="輸入商品名稱..." autocomplete="off">
+                                    </div>
                                     <div id="prodListContainer">
                                         </div>
                                 </div>
@@ -228,7 +233,6 @@
     let allProducts = [], allCustomers = [], currentCart = [], allOrders = [], displayedOrders = [];
     let isShowingAll = false;
     
-    // 選中的 ID 記錄
     let selectedCustId = null;
     let selectedProdId = null;
 
@@ -251,7 +255,7 @@
 
     // 搜尋選單 DOM
     const custSearchInput = document.getElementById('custSearchInput');
-    constcustListContainer = document.getElementById('custListContainer');
+    const custListContainer = document.getElementById('custListContainer'); // 修正：這裡一定要有空格
     const custSelectedText = document.getElementById('custSelectedText');
     
     const prodSearchInput = document.getElementById('prodSearchInput');
@@ -270,12 +274,12 @@
         // 客戶
         const snapCust = await getDocs(query(collection(db, "customers"), orderBy("joinedAt", "desc")));
         allCustomers = snapCust.docs.map(d => ({id: d.id, ...d.data()}));
-        renderCustList(allCustomers);
+        renderCustList(allCustomers); // 初始化時顯示全部
 
         // 商品
         const snapProd = await getDocs(query(collection(db, "products"), orderBy("createdAt", "desc")));
         allProducts = snapProd.docs.map(d => ({id: d.id, ...d.data()}));
-        renderProdList(allProducts);
+        renderProdList(allProducts); // 初始化時顯示全部
 
         // 訂單
         await loadOrders();
@@ -285,7 +289,7 @@
     function renderCustList(list) {
         custListContainer.innerHTML = '';
         if(list.length === 0) {
-            custListContainer.innerHTML = '<div class="text-muted p-2 small">找不到客戶</div>';
+            custListContainer.innerHTML = '<div class="text-muted p-3 text-center small">找不到客戶</div>';
             return;
         }
         list.forEach(c => {
@@ -321,13 +325,13 @@
     function renderProdList(list) {
         prodListContainer.innerHTML = '';
         if(list.length === 0) {
-            prodListContainer.innerHTML = '<div class="text-muted p-2 small">找不到商品</div>';
+            prodListContainer.innerHTML = '<div class="text-muted p-3 text-center small">找不到商品</div>';
             return;
         }
         list.forEach(p => {
             const div = document.createElement('div');
             div.className = 'dropdown-item-custom';
-            div.innerHTML = `<div>${p.name}</div><small>$${p.price}</small>`;
+            div.innerHTML = `<div>${p.name}</div><small class="text-muted">$${p.price}</small>`;
             div.onclick = () => {
                 selectProduct(p.id, p.name, p.price);
             };
@@ -343,10 +347,10 @@
 
     function selectProduct(id, name, price) {
         selectedProdId = id;
-        prodSelectedText.innerHTML = `${name} <span class="badge bg-secondary">$${price}</span>`;
+        prodSelectedText.innerHTML = `${name} <span class="badge bg-secondary ms-1">$${price}</span>`;
     }
 
-    // --- 訂單列表邏輯 (改寫 applyFilters 使用 selectedCustId) ---
+    // --- 訂單列表邏輯 ---
     btnToggleShowAll.addEventListener('click', () => {
         isShowingAll = !isShowingAll;
         if (isShowingAll) {
@@ -354,10 +358,6 @@
         } else {
             btnToggleShowAll.classList.replace('btn-dark', 'btn-outline-dark');
         }
-        
-        // 如果切換模式時想清空客戶篩選，可以解開下行
-        // selectedCustId = null; custSelectedText.innerText = "請選擇或搜尋客戶...";
-        
         applyFilters();
     });
 
@@ -437,7 +437,7 @@
         document.querySelectorAll('.order-check').forEach(chk => chk.addEventListener('change', updateBatchSummary));
     }
 
-    // 購物車邏輯 (改用 selectedProdId)
+    // 購物車邏輯
     document.getElementById('btnAddToCart').addEventListener('click', () => {
         if (!selectedProdId) { alert("請先選擇商品"); return; }
         const qty = parseInt(inputQty.value);
@@ -451,7 +451,6 @@
         
         renderCart();
         inputQty.value = 1;
-        // 這裡可以選擇是否重置商品選單，暫時保留方便連續加
     });
 
     function renderCart() {
@@ -473,7 +472,7 @@
         window.removeCartItem = (index) => { currentCart.splice(index, 1); renderCart(); };
     }
 
-    // 送出訂單 (改用 selectedCustId)
+    // 送出訂單
     submitBtn.addEventListener('click', async () => {
         if (!selectedCustId) { alert("請選擇客戶！"); return; }
         const customer = allCustomers.find(c => c.id === selectedCustId);
@@ -485,12 +484,10 @@
                 customerId: customer.id, customerName: customer.name, items: currentCart, totalAmount: total, orderDate: new Date(), status: 'pending'
             });
             currentCart = []; renderCart(); await loadOrders();
-            // 重置選單
-            // selectedCustId = null; custSelectedText.innerText = "請選擇或搜尋客戶...";
         } catch (error) { console.error("Error:", error); alert("失敗"); } finally { submitBtn.disabled = false; }
     });
 
-    // --- 收據與批次操作 (邏輯不變) ---
+    // --- 收據與批次操作 ---
     function updateBatchSummary() {
         const checkboxes = document.querySelectorAll('.order-check:checked');
         let total = 0, count = 0;
@@ -532,7 +529,6 @@
         updateBatchSummary();
     });
 
-    // 生成收據 HTML
     function generateReceiptHtml(orderList) {
         let html = '';
         let grandTotal = 0;
