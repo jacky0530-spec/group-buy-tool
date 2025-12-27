@@ -27,6 +27,10 @@
 
         .card { border: none; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .filter-bar { background: white; padding: 15px; border-radius: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        
+        /* 表格樣式優化 */
+        .table-custom thead th { background-color: var(--theme-light); color: #0277bd; border: none; }
+        .avatar-circle { width: 32px; height: 32px; background-color: #e0e0e0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-size: 0.8rem; color: #555; }
     </style>
 </head>
 <body>
@@ -55,7 +59,6 @@
             <i class="bi bi-funnel-fill text-primary me-2"></i>
             <span class="fw-bold text-secondary">報表篩選：</span>
         </div>
-        
         <div>
             <select id="filterMode" class="form-select form-select-sm border-primary">
                 <option value="all">全部資料 (All Time)</option>
@@ -63,24 +66,16 @@
                 <option value="range">自訂日期 (Custom Range)</option>
             </select>
         </div>
-
         <div id="monthPickerGroup" class="d-none">
             <input type="month" id="inputMonth" class="form-control form-control-sm">
         </div>
-
         <div id="rangePickerGroup" class="d-none d-flex gap-2 align-items-center">
             <input type="date" id="inputStart" class="form-control form-control-sm">
             <span class="text-muted">~</span>
             <input type="date" id="inputEnd" class="form-control form-control-sm">
         </div>
-
-        <button id="btnQuery" class="btn btn-primary btn-sm px-3">
-            <i class="bi bi-search"></i> 查詢
-        </button>
-        
-        <button id="btnReset" class="btn btn-outline-secondary btn-sm" title="重新載入">
-            <i class="bi bi-arrow-clockwise"></i>
-        </button>
+        <button id="btnQuery" class="btn btn-primary btn-sm px-3"><i class="bi bi-search"></i> 查詢</button>
+        <button id="btnReset" class="btn btn-outline-secondary btn-sm" title="重新載入"><i class="bi bi-arrow-clockwise"></i></button>
     </div>
 
     <div class="row g-4 mb-4">
@@ -113,33 +108,68 @@
         </div>
     </div>
 
-    <div class="row g-4 mb-5">
+    <div class="row g-4 mb-4">
         <div class="col-lg-8">
             <div class="card h-100">
-                <div class="card-header text-primary bg-white d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-graph-up me-2"></i>銷售趨勢分析</span>
+                <div class="card-header text-primary bg-white">
+                    <i class="bi bi-graph-up me-2"></i>銷售趨勢分析
                 </div>
                 <div class="card-body">
-                    <div style="height: 300px;">
-                        <canvas id="trendChart"></canvas>
-                    </div>
+                    <div style="height: 300px;"><canvas id="trendChart"></canvas></div>
                 </div>
             </div>
         </div>
-
         <div class="col-lg-4">
             <div class="card h-100">
                 <div class="card-header text-success bg-white">
                     <i class="bi bi-trophy me-2"></i>熱銷商品 TOP 5
                 </div>
                 <div class="card-body">
-                    <div style="height: 300px;">
-                        <canvas id="topProdChart"></canvas>
-                    </div>
+                    <div style="height: 300px;"><canvas id="topProdChart"></canvas></div>
                 </div>
             </div>
         </div>
     </div>
+
+    <div class="card mb-5 border-info">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-search-heart text-info fs-4 me-2"></i>
+                <h5 class="mb-0 fw-bold text-dark">單一商品買家追蹤</h5>
+            </div>
+            <div class="w-50">
+                <select id="selectProductDetail" class="form-select border-info">
+                    <option value="">請選擇要查詢的商品...</option>
+                    </select>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="productDetailInfo" class="text-center text-muted py-5">
+                <i class="bi bi-basket display-4 d-block mb-3 opacity-25"></i>
+                請從右上方選擇商品，即可查看誰買了這個東西
+            </div>
+            
+            <div id="productDetailTableContainer" class="d-none">
+                <div class="d-flex justify-content-between mb-3 px-2">
+                    <span class="text-muted">總銷量: <strong class="text-danger fs-5" id="detailTotalQty">0</strong></span>
+                    <span class="text-muted">購買人數: <strong class="text-dark fs-5" id="detailTotalPeople">0</strong></span>
+                </div>
+                <table class="table table-hover table-custom align-middle">
+                    <thead>
+                        <tr>
+                            <th>買家姓名</th>
+                            <th class="text-center">購買數量</th>
+                            <th class="text-center">最後購買日</th>
+                            <th class="text-end">累計金額</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailTableBody">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -152,13 +182,14 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // 全域變數 (儲存原始資料與圖表實例)
+    // 全域變數
     let rawOrders = [];
-    let productsCostMap = {};
+    let productsCostMap = {}; 
+    let productsNameList = []; // 存商品選單用
     let chartInstanceTrend = null;
     let chartInstanceTop = null;
 
-    // DOM 元素
+    // DOM
     const filterMode = document.getElementById('filterMode');
     const monthPicker = document.getElementById('monthPickerGroup');
     const rangePicker = document.getElementById('rangePickerGroup');
@@ -166,53 +197,65 @@
     const inputStart = document.getElementById('inputStart');
     const inputEnd = document.getElementById('inputEnd');
     const dateLabel = document.getElementById('dateLabel');
+    
+    // 商品追蹤 DOM
+    const selectProductDetail = document.getElementById('selectProductDetail');
+    const productDetailInfo = document.getElementById('productDetailInfo');
+    const productDetailTableContainer = document.getElementById('productDetailTableContainer');
+    const detailTableBody = document.getElementById('detailTableBody');
+    const detailTotalQty = document.getElementById('detailTotalQty');
+    const detailTotalPeople = document.getElementById('detailTotalPeople');
 
-    // 1. 初始化：載入資料
+    // 1. 初始化
     async function initData() {
-        // A. 建立成本對照表
+        // A. 抓商品資料 (建立成本表 & 下拉選單)
         const prodSnap = await getDocs(collection(db, "products"));
+        productsNameList = [];
+        
         prodSnap.forEach(doc => {
-            productsCostMap[doc.id] = doc.data().cost || 0;
+            const data = doc.data();
+            productsCostMap[doc.id] = data.cost || 0;
+            productsNameList.push({ id: doc.id, name: data.name });
         });
 
-        // B. 抓取所有訂單 (一次抓取，前端篩選，提升效能)
+        // 填入「商品追蹤」的下拉選單
+        productsNameList.forEach(p => {
+            selectProductDetail.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+        });
+
+        // B. 抓所有訂單
         const orderSnap = await getDocs(query(collection(db, "orders"), orderBy("orderDate", "asc")));
         rawOrders = orderSnap.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
-            dateObj: doc.data().orderDate.toDate() // 預先轉好 Date 物件方便篩選
+            dateObj: doc.data().orderDate.toDate()
         }));
 
-        // C. 預設顯示全部
         updateDashboard(rawOrders);
     }
 
-    // 2. UI 互動邏輯
+    // 2. UI 互動
     filterMode.addEventListener('change', () => {
         const mode = filterMode.value;
         monthPicker.classList.add('d-none');
         rangePicker.classList.add('d-none');
-
         if (mode === 'month') {
             monthPicker.classList.remove('d-none');
-            // 預設填入本月
             const now = new Date();
             const y = now.getFullYear();
             const m = String(now.getMonth() + 1).padStart(2, '0');
             if(!inputMonth.value) inputMonth.value = `${y}-${m}`;
-        } else if (mode === 'range') {
-            rangePicker.classList.remove('d-none');
-        }
+        } else if (mode === 'range') rangePicker.classList.remove('d-none');
     });
 
     document.getElementById('btnQuery').addEventListener('click', performQuery);
     document.getElementById('btnReset').addEventListener('click', () => {
         filterMode.value = 'all';
-        filterMode.dispatchEvent(new Event('change')); // 觸發 UI 隱藏
+        filterMode.dispatchEvent(new Event('change'));
         updateDashboard(rawOrders);
     });
 
-    // 3. 執行篩選邏輯
+    // 3. 執行篩選 (Dashboard)
     function performQuery() {
         const mode = filterMode.value;
         let filtered = [];
@@ -221,136 +264,78 @@
         if (mode === 'all') {
             filtered = rawOrders;
             labelText = "統計範圍：全部資料";
-        } 
-        else if (mode === 'month') {
-            const val = inputMonth.value; // "2023-12"
+        } else if (mode === 'month') {
+            const val = inputMonth.value;
             if (!val) { alert("請選擇月份"); return; }
-            
             const [year, month] = val.split('-');
-            filtered = rawOrders.filter(o => {
-                return o.dateObj.getFullYear() == year && (o.dateObj.getMonth() + 1) == month;
-            });
+            filtered = rawOrders.filter(o => o.dateObj.getFullYear() == year && (o.dateObj.getMonth() + 1) == month);
             labelText = `統計範圍：${year}年 ${month}月`;
-        } 
-        else if (mode === 'range') {
+        } else if (mode === 'range') {
             const s = inputStart.value;
             const e = inputEnd.value;
             if (!s || !e) { alert("請選擇開始與結束日期"); return; }
-
             const startDate = new Date(s + "T00:00:00");
             const endDate = new Date(e + "T23:59:59");
-
-            filtered = rawOrders.filter(o => {
-                return o.dateObj >= startDate && o.dateObj <= endDate;
-            });
+            filtered = rawOrders.filter(o => o.dateObj >= startDate && o.dateObj <= endDate);
             labelText = `統計範圍：${s} ~ ${e}`;
         }
-
         dateLabel.innerText = labelText;
         updateDashboard(filtered);
     }
 
-    // 4. 更新儀表板核心 (計算 + 繪圖)
     function updateDashboard(orders) {
-        let totalRevenue = 0;
-        let totalProfit = 0;
-        let productSales = {};
-        let trendData = {}; // { "日期": 金額 }
+        let totalRevenue = 0, totalProfit = 0, productSales = {}, trendData = {};
 
         orders.forEach(order => {
             totalRevenue += order.totalAmount;
-
-            // 計算毛利
             let orderCost = 0;
             if(order.items) {
                 order.items.forEach(item => {
                     const cost = productsCostMap[item.id] || 0;
                     orderCost += cost * item.qty;
-                    
-                    // 統計商品銷量
                     productSales[item.name] = (productSales[item.name] || 0) + item.qty;
                 });
             }
             totalProfit += (order.totalAmount - orderCost);
 
-            // 準備圖表資料 (依日期 YYYY/MM/DD 聚合)
             const d = order.dateObj;
-            // 如果是選全部，圖表顯示月份；如果是選特定區間，圖表顯示日期
             const mode = filterMode.value;
-            let key;
+            const key = (mode === 'all') ? `${d.getFullYear()}/${d.getMonth()+1}` : `${d.getMonth()+1}/${d.getDate()}`;
             
-            if (mode === 'all') {
-                key = `${d.getFullYear()}/${d.getMonth()+1}`; // 2023/12
-            } else {
-                key = `${d.getMonth()+1}/${d.getDate()}`; // 12/25
-            }
-
             if(!trendData[key]) trendData[key] = 0;
             trendData[key] += order.totalAmount;
         });
 
-        // 更新數字卡片
-        animateValue('totalRevenue', totalRevenue);
-        animateValue('totalProfit', totalProfit);
-        animateValue('totalOrders', orders.length);
+        document.getElementById('totalRevenue').innerText = totalRevenue.toLocaleString();
+        document.getElementById('totalProfit').innerText = totalProfit.toLocaleString();
+        document.getElementById('totalOrders').innerText = orders.length;
 
-        // 重新繪製圖表
         renderCharts(trendData, productSales);
     }
 
-    // 簡單的數字跳動動畫
-    function animateValue(id, end) {
-        const obj = document.getElementById(id);
-        obj.innerText = end.toLocaleString();
-        // 為了效能，簡單直接替換，若要動畫可再擴充
-    }
-
     function renderCharts(trendData, productSales) {
-        // 1. 銷毀舊圖表
         if (chartInstanceTrend) chartInstanceTrend.destroy();
         if (chartInstanceTop) chartInstanceTop.destroy();
 
-        // 2. 趨勢圖 (折線圖)
         const ctxTrend = document.getElementById('trendChart').getContext('2d');
-        // 對日期 key 進行排序
-        const sortedKeys = Object.keys(trendData).sort((a,b) => {
-            // 簡單排序邏輯，若跨年分較多需更嚴謹處理 Date parse
-            return new Date(a) - new Date(b); 
-        }); 
-        
-        // 若日期排序不準確 (例如 12/1 vs 12/10)，對於 all time 模式，key 是 "2023/10" 這種格式可直接字串排序
-        // 對於 range 模式，key 是 "10/25"，排序可能需要轉回 date 物件。
-        // 這裡做一個通用排序優化：
-        // 由於我們原始資料 orders 已經依照 orderDate 排序過，
-        // 我們依序讀取建立 trendData 時，順序大致是對的 (若是 Map)，但 Object key 順序不保證。
-        // 為求精確，我們簡單處理：若 key 包含年，直接 sort；若只有月日，假設同一年
-        
-        // 簡化：直接使用 keys
-        
+        // 簡單排序日期 Key
+        const sortedKeys = Object.keys(trendData).sort((a,b) => new Date(a.replace('/','-')) - new Date(b.replace('/','-')));
+
         chartInstanceTrend = new Chart(ctxTrend, {
             type: 'line',
             data: {
                 labels: Object.keys(trendData),
                 datasets: [{
-                    label: '銷售金額 ($)',
+                    label: '營收 ($)',
                     data: Object.values(trendData),
                     borderColor: '#29b6f6',
                     backgroundColor: 'rgba(41, 182, 246, 0.1)',
-                    tension: 0.3,
-                    fill: true,
-                    pointRadius: 4,
-                    pointHoverRadius: 6
+                    tension: 0.3, fill: true
                 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true } },
-                plugins: { legend: { display: false } }
-            }
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
 
-        // 3. 熱銷排行 (長條圖)
         const ctxTop = document.getElementById('topProdChart').getContext('2d');
         const sortedProds = Object.entries(productSales).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
@@ -365,16 +350,91 @@
                     borderRadius: 4
                 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'y',
-                plugins: { legend: { display: false } }
-            }
+            options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } }
         });
     }
 
-    // 啟動
+    // 4. 新增功能：單一商品買家追蹤邏輯
+    selectProductDetail.addEventListener('change', () => {
+        const prodId = selectProductDetail.value;
+        if (!prodId) {
+            productDetailInfo.classList.remove('d-none');
+            productDetailTableContainer.classList.add('d-none');
+            return;
+        }
+
+        // 開始分析
+        const buyersMap = {}; // Key: CustomerName, Value: { qty: 0, lastDate: date, totalSpent: 0 }
+        let grandTotalQty = 0;
+
+        // 這裡我們搜尋 "全部歷史訂單" (rawOrders)，不該受上方日期篩選影響，因為要查的是"誰買過"
+        rawOrders.forEach(order => {
+            if(!order.items) return;
+            const targetItem = order.items.find(i => i.id === prodId);
+            
+            if(targetItem) {
+                const cName = order.customerName;
+                const qty = targetItem.qty;
+                const amount = targetItem.price * qty;
+
+                if(!buyersMap[cName]) {
+                    buyersMap[cName] = { qty: 0, lastDate: order.dateObj, totalSpent: 0 };
+                }
+                
+                // 累加
+                buyersMap[cName].qty += qty;
+                buyersMap[cName].totalSpent += amount;
+                
+                // 更新最後購買日
+                if (order.dateObj > buyersMap[cName].lastDate) {
+                    buyersMap[cName].lastDate = order.dateObj;
+                }
+
+                grandTotalQty += qty;
+            }
+        });
+
+        // 轉換為陣列並排序 (依購買數量多->少)
+        const buyersArray = Object.entries(buyersMap).map(([name, data]) => ({ name, ...data }));
+        buyersArray.sort((a, b) => b.qty - a.qty);
+
+        // 渲染表格
+        renderDetailTable(buyersArray, grandTotalQty);
+    });
+
+    function renderDetailTable(data, totalQty) {
+        productDetailInfo.classList.add('d-none');
+        productDetailTableContainer.classList.remove('d-none');
+        
+        detailTotalQty.innerText = totalQty;
+        detailTotalPeople.innerText = data.length;
+        detailTableBody.innerHTML = '';
+
+        if(data.length === 0) {
+            detailTableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">尚未有銷售紀錄</td></tr>';
+            return;
+        }
+
+        data.forEach(buyer => {
+            const dateStr = buyer.lastDate.toLocaleDateString();
+            const avatarLetter = buyer.name.charAt(0);
+            
+            detailTableBody.innerHTML += `
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <span class="avatar-circle">${avatarLetter}</span>
+                            <span class="fw-bold">${buyer.name}</span>
+                        </div>
+                    </td>
+                    <td class="text-center"><span class="badge bg-primary rounded-pill">${buyer.qty}</span></td>
+                    <td class="text-center text-muted small">${dateStr}</td>
+                    <td class="text-end fw-medium">$${buyer.totalSpent}</td>
+                </tr>
+            `;
+        });
+    }
+
     initData();
 
 </script>
