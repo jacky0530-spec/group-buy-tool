@@ -1,4 +1,4 @@
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyDDDrWplJvsFm5CzacbUaLH3d4RXmlVQNw",
   authDomain: "group-buy-tool.firebaseapp.com",
   projectId: "group-buy-tool",
