@@ -11,14 +11,12 @@
         :root {
             --soft-bg: #f8f9fa;
             --navbar-bg: #8ab6d6;
-            --theme-color: #ffb74d; /* 暖橘主色 */
-            --theme-light: #fff3e0; /* 淺橘背景 */
+            --theme-color: #ffb74d;
+            --theme-light: #fff3e0;
             --theme-dark: #ef6c00;
         }
-        
         body { background-color: var(--soft-bg); }
         .navbar-custom { background-color: var(--navbar-bg) !important; }
-        
         .card { border: none; border-radius: 15px; overflow: hidden; }
         .card-header-custom {
             background-color: var(--theme-light);
@@ -26,10 +24,8 @@
             font-weight: bold;
             border-bottom: 2px solid var(--theme-color);
         }
-        
         .btn-theme { background-color: var(--theme-color); color: white; border: none; }
         .btn-theme:hover { background-color: var(--theme-dark); color: white; }
-        
         .table-hover tbody tr:hover { background-color: var(--theme-light); }
     </style>
 </head>
@@ -60,13 +56,12 @@
                 <div class="card-body">
                     <form id="customerForm">
                         <input type="hidden" id="editId">
-                        
                         <div class="mb-3">
                             <label class="form-label text-muted small">客戶姓名</label>
                             <input type="text" class="form-control" id="cName" required placeholder="真實姓名">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label text-muted small">Line 暱稱 <span class="badge bg-success">New</span></label>
+                            <label class="form-label text-muted small">Line 暱稱</label>
                             <input type="text" class="form-control" id="cLine" placeholder="Line 顯示名稱">
                         </div>
                         <div class="mb-3">
@@ -77,7 +72,6 @@
                             <label class="form-label text-muted small">備註</label>
                             <input type="text" class="form-control" id="cNote" placeholder="例如: 管理室代收">
                         </div>
-                        
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-theme" id="submitBtn">加入名單</button>
                             <button type="button" class="btn btn-secondary d-none" id="cancelBtn">取消編輯</button>
@@ -116,6 +110,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, updateDoc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    // 回復使用外部引用
     import { firebaseConfig } from './firebase-config.js';
 
     const app = initializeApp(firebaseConfig);
@@ -123,13 +118,11 @@
 
     let isEditing = false;
     let allCustomers = [];
-
     const form = document.getElementById('customerForm');
     const submitBtn = document.getElementById('submitBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const formTitle = document.getElementById('formTitle');
 
-    // 1. 提交表單
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -140,15 +133,17 @@
         const editId = document.getElementById('editId').value;
 
         if(!name) return;
+        submitBtn.disabled = true;
 
         try {
-            // 防呆檢核：檢查姓名是否重複
+            // 防呆檢核
             const q = query(collection(db, "customers"), where("name", "==", name));
             const snapshot = await getDocs(q);
             const isDuplicate = snapshot.docs.some(doc => doc.id !== editId);
 
             if (isDuplicate) {
-                alert(`錯誤：客戶姓名「${name}」已經存在！若為同名不同人，請在名字後加註(如: 王小明-2)`);
+                alert(`錯誤：客戶姓名「${name}」已經存在！`);
+                submitBtn.disabled = false;
                 return;
             }
 
@@ -156,23 +151,25 @@
                 await updateDoc(doc(db, "customers", editId), {
                     name, lineNick, phone, note, updatedAt: new Date()
                 });
-                alert("客戶資料更新成功！");
                 resetForm();
             } else {
                 await addDoc(collection(db, "customers"), {
                     name, lineNick, phone, note, joinedAt: new Date()
                 });
-                alert("客戶新增成功！");
                 form.reset();
             }
-            loadCustomers();
+            
+            // 成功後直接刷新列表，不跳 Alert
+            await loadCustomers();
+            
         } catch (error) {
             console.error("Error: ", error);
-            alert("操作失敗");
+            alert("操作失敗: " + error.message);
+        } finally {
+            submitBtn.disabled = false;
         }
     });
 
-    // 2. 讀取
     async function loadCustomers() {
         const q = query(collection(db, "customers"), orderBy("joinedAt", "desc"));
         const snapshot = await getDocs(q);
@@ -180,13 +177,11 @@
         renderTable(allCustomers);
     }
 
-    // 3. 渲染表格
     function renderTable(data) {
         const tbody = document.getElementById('customerTableBody');
         tbody.innerHTML = '';
         data.forEach(item => {
             const lineDisplay = item.lineNick ? `<span class="badge bg-success"><i class="bi bi-line me-1"></i>${item.lineNick}</span>` : '<span class="text-muted small">-</span>';
-            
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="ps-4 fw-medium">${item.name}</td>
@@ -194,37 +189,25 @@
                 <td>${item.phone || ''}</td>
                 <td class="text-secondary small">${item.note || ''}</td>
                 <td class="text-end pe-4">
-                    <button class="btn btn-sm btn-outline-primary me-1 btn-edit" data-id="${item.id}">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${item.id}">
-                        <i class="bi bi-trash"></i>
-                    </button>
+                    <button class="btn btn-sm btn-outline-primary me-1 btn-edit" data-id="${item.id}"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${item.id}"><i class="bi bi-trash"></i></button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
 
-        // 綁定事件
-        document.querySelectorAll('.btn-edit').forEach(btn => {
-            btn.addEventListener('click', () => startEdit(btn.dataset.id));
-        });
-        document.querySelectorAll('.btn-delete').forEach(btn => {
-            btn.addEventListener('click', () => deleteCustomer(btn.dataset.id));
-        });
+        document.querySelectorAll('.btn-edit').forEach(btn => btn.addEventListener('click', () => startEdit(btn.dataset.id)));
+        document.querySelectorAll('.btn-delete').forEach(btn => btn.addEventListener('click', () => deleteCustomer(btn.dataset.id)));
     }
 
-    // 4. 編輯與取消
     function startEdit(id) {
         const customer = allCustomers.find(c => c.id === id);
         if (!customer) return;
-
         document.getElementById('editId').value = customer.id;
         document.getElementById('cName').value = customer.name;
         document.getElementById('cLine').value = customer.lineNick || '';
         document.getElementById('cPhone').value = customer.phone || '';
         document.getElementById('cNote').value = customer.note || '';
-
         isEditing = true;
         formTitle.textContent = "編輯客戶資料";
         submitBtn.textContent = "確認更新";
@@ -244,7 +227,6 @@
         cancelBtn.classList.add('d-none');
     }
 
-    // 5. 刪除
     async function deleteCustomer(id) {
         if(confirm("確定要刪除這位客戶嗎？")) {
             await deleteDoc(doc(db, "customers", id));
@@ -252,7 +234,6 @@
         }
     }
 
-    // 6. 搜尋 (包含 Line 暱稱)
     document.getElementById('searchCustomer').addEventListener('input', (e) => {
         const keyword = e.target.value.toLowerCase();
         const filtered = allCustomers.filter(c => 
