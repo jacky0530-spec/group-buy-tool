@@ -28,9 +28,16 @@
         .card { border: none; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .filter-bar { background: white; padding: 15px; border-radius: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         
-        /* 表格樣式優化 */
         .table-custom thead th { background-color: var(--theme-light); color: #0277bd; border: none; }
+        
+        /* 頭像樣式 */
         .avatar-circle { width: 32px; height: 32px; background-color: #e0e0e0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-size: 0.8rem; color: #555; }
+        
+        /* 數量強調樣式 */
+        .qty-highlight {
+            font-family: 'Segoe UI', sans-serif;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
@@ -140,7 +147,7 @@
             <div class="w-50">
                 <select id="selectProductDetail" class="form-select border-info">
                     <option value="">請選擇要查詢的商品...</option>
-                    </select>
+                </select>
             </div>
         </div>
         <div class="card-body">
@@ -151,7 +158,7 @@
             
             <div id="productDetailTableContainer" class="d-none">
                 <div class="d-flex justify-content-between mb-3 px-2">
-                    <span class="text-muted">總銷量: <strong class="text-danger fs-5" id="detailTotalQty">0</strong></span>
+                    <span class="text-muted">總銷量: <strong class="text-danger fs-4" id="detailTotalQty">0</strong></span>
                     <span class="text-muted">購買人數: <strong class="text-dark fs-5" id="detailTotalPeople">0</strong></span>
                 </div>
                 <table class="table table-hover table-custom align-middle">
@@ -182,14 +189,12 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // 全域變數
     let rawOrders = [];
     let productsCostMap = {}; 
-    let productsNameList = []; // 存商品選單用
+    let productsNameList = [];
     let chartInstanceTrend = null;
     let chartInstanceTop = null;
 
-    // DOM
     const filterMode = document.getElementById('filterMode');
     const monthPicker = document.getElementById('monthPickerGroup');
     const rangePicker = document.getElementById('rangePickerGroup');
@@ -198,7 +203,6 @@
     const inputEnd = document.getElementById('inputEnd');
     const dateLabel = document.getElementById('dateLabel');
     
-    // 商品追蹤 DOM
     const selectProductDetail = document.getElementById('selectProductDetail');
     const productDetailInfo = document.getElementById('productDetailInfo');
     const productDetailTableContainer = document.getElementById('productDetailTableContainer');
@@ -206,9 +210,7 @@
     const detailTotalQty = document.getElementById('detailTotalQty');
     const detailTotalPeople = document.getElementById('detailTotalPeople');
 
-    // 1. 初始化
     async function initData() {
-        // A. 抓商品資料 (建立成本表 & 下拉選單)
         const prodSnap = await getDocs(collection(db, "products"));
         productsNameList = [];
         
@@ -218,12 +220,10 @@
             productsNameList.push({ id: doc.id, name: data.name });
         });
 
-        // 填入「商品追蹤」的下拉選單
         productsNameList.forEach(p => {
             selectProductDetail.innerHTML += `<option value="${p.id}">${p.name}</option>`;
         });
 
-        // B. 抓所有訂單
         const orderSnap = await getDocs(query(collection(db, "orders"), orderBy("orderDate", "asc")));
         rawOrders = orderSnap.docs.map(doc => ({
             id: doc.id,
@@ -234,7 +234,6 @@
         updateDashboard(rawOrders);
     }
 
-    // 2. UI 互動
     filterMode.addEventListener('change', () => {
         const mode = filterMode.value;
         monthPicker.classList.add('d-none');
@@ -255,7 +254,6 @@
         updateDashboard(rawOrders);
     });
 
-    // 3. 執行篩選 (Dashboard)
     function performQuery() {
         const mode = filterMode.value;
         let filtered = [];
@@ -318,7 +316,6 @@
         if (chartInstanceTop) chartInstanceTop.destroy();
 
         const ctxTrend = document.getElementById('trendChart').getContext('2d');
-        // 簡單排序日期 Key
         const sortedKeys = Object.keys(trendData).sort((a,b) => new Date(a.replace('/','-')) - new Date(b.replace('/','-')));
 
         chartInstanceTrend = new Chart(ctxTrend, {
@@ -354,7 +351,7 @@
         });
     }
 
-    // 4. 新增功能：單一商品買家追蹤邏輯
+    // 4. 單一商品買家追蹤邏輯
     selectProductDetail.addEventListener('change', () => {
         const prodId = selectProductDetail.value;
         if (!prodId) {
@@ -363,11 +360,9 @@
             return;
         }
 
-        // 開始分析
-        const buyersMap = {}; // Key: CustomerName, Value: { qty: 0, lastDate: date, totalSpent: 0 }
+        const buyersMap = {}; 
         let grandTotalQty = 0;
 
-        // 這裡我們搜尋 "全部歷史訂單" (rawOrders)，不該受上方日期篩選影響，因為要查的是"誰買過"
         rawOrders.forEach(order => {
             if(!order.items) return;
             const targetItem = order.items.find(i => i.id === prodId);
@@ -380,25 +375,18 @@
                 if(!buyersMap[cName]) {
                     buyersMap[cName] = { qty: 0, lastDate: order.dateObj, totalSpent: 0 };
                 }
-                
-                // 累加
                 buyersMap[cName].qty += qty;
                 buyersMap[cName].totalSpent += amount;
-                
-                // 更新最後購買日
                 if (order.dateObj > buyersMap[cName].lastDate) {
                     buyersMap[cName].lastDate = order.dateObj;
                 }
-
                 grandTotalQty += qty;
             }
         });
 
-        // 轉換為陣列並排序 (依購買數量多->少)
         const buyersArray = Object.entries(buyersMap).map(([name, data]) => ({ name, ...data }));
         buyersArray.sort((a, b) => b.qty - a.qty);
 
-        // 渲染表格
         renderDetailTable(buyersArray, grandTotalQty);
     });
 
@@ -424,10 +412,12 @@
                     <td>
                         <div class="d-flex align-items-center">
                             <span class="avatar-circle">${avatarLetter}</span>
-                            <span class="fw-bold">${buyer.name}</span>
+                            <span class="fw-bold fs-5">${buyer.name}</span>
                         </div>
                     </td>
-                    <td class="text-center"><span class="badge bg-primary rounded-pill">${buyer.qty}</span></td>
+                    <td class="text-center">
+                        <span class="fs-3 fw-bolder text-primary qty-highlight">${buyer.qty}</span>
+                    </td>
                     <td class="text-center text-muted small">${dateStr}</td>
                     <td class="text-end fw-medium">$${buyer.totalSpent}</td>
                 </tr>
