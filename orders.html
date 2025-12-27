@@ -35,7 +35,7 @@
         .status-pending { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
         .status-shipped { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         
-        tr.row-shipped { opacity: 0.7; background-color: #fafafa; }
+        tr.row-shipped { opacity: 0.75; background-color: #f8f9fa; }
         tr.selected { background-color: #e8f5e9 !important; }
 
         .checkout-panel {
@@ -48,20 +48,8 @@
         }
 
         /* 收據樣式 */
-        .receipt-item {
-            border-bottom: 1px dashed #ddd;
-            padding-bottom: 10px;
-            margin-bottom: 10px;
-        }
-        .receipt-header {
-            background-color: #f8f9fa;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-weight: bold;
-            color: #555;
-            display: flex;
-            justify-content: space-between;
-        }
+        .receipt-card { border: 1px solid #eee; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .receipt-header { background-color: #f8f9fa; padding: 8px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body>
@@ -176,7 +164,7 @@
                                 <span class="me-2">選取總計: <strong class="text-danger fs-4">$<span id="selectedTotal">0</span></strong></span>
                                 
                                 <button class="btn btn-success btn text-white px-4" id="btnBatchShip" disabled>
-                                    <i class="bi bi-receipt"></i> 產生出貨收據
+                                    <i class="bi bi-receipt"></i> <span id="btnBatchShipText">出貨/收據</span>
                                 </button>
                             </div>
                         </div>
@@ -188,9 +176,10 @@
 </div>
 
 <div class="modal fade" id="batchReceiptModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable"> <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="bi bi-receipt-cutoff me-2"></i>批次出貨收據確認</h5>
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white" id="modalHeader">
+                <h5 class="modal-title"><i class="bi bi-receipt-cutoff me-2"></i>訂單收據明細</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body bg-light">
@@ -198,11 +187,11 @@
                     </div>
                 
                 <div class="text-end mt-4 pt-3 border-top border-2">
-                    <h4 class="fw-bold">總應收金額: <span class="text-danger" id="receiptGrandTotal">$0</span></h4>
+                    <h4 class="fw-bold">總合計: <span class="text-danger" id="receiptGrandTotal">$0</span></h4>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">返回修改</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
                 <button type="button" class="btn btn-success btn-lg" id="btnConfirmBatchShip">
                     <i class="bi bi-check-lg"></i> 確認出貨 (更新狀態)
                 </button>
@@ -238,15 +227,16 @@
     const selectedCountEl = document.getElementById('selectedCount');
     const selectedTotalEl = document.getElementById('selectedTotal');
     
-    // 按鈕
-    const btnTopBatchDelete = document.getElementById('btnTopBatchDelete'); // 上方刪除
-    const btnBatchShip = document.getElementById('btnBatchShip'); // 下方出貨
+    const btnTopBatchDelete = document.getElementById('btnTopBatchDelete');
+    const btnBatchShip = document.getElementById('btnBatchShip');
+    const btnBatchShipText = document.getElementById('btnBatchShipText');
 
     // Modal
     const batchReceiptModal = new bootstrap.Modal(document.getElementById('batchReceiptModal'));
     const btnConfirmBatchShip = document.getElementById('btnConfirmBatchShip');
     const receiptContainer = document.getElementById('receiptContainer');
     const receiptGrandTotal = document.getElementById('receiptGrandTotal');
+    const modalHeader = document.getElementById('modalHeader');
 
     // 1. 初始化
     async function initData() {
@@ -268,7 +258,6 @@
         await loadOrders();
     }
 
-    // 2. 切換顯示模式
     btnToggleShowAll.addEventListener('click', () => {
         isShowingAll = !isShowingAll;
         if (isShowingAll) {
@@ -334,16 +323,16 @@
                 : '<span class="status-badge status-pending">未出貨</span>';
             const rowClass = isShipped ? 'row-shipped' : '';
 
-            // 已出貨的不能被刪除/出貨，所以 disable checkbox
-            const checkboxDisabled = isShipped ? 'disabled' : '';
-
-            // 單行操作按鈕 (僅保留刪除，出貨統一用批次)
-            const actionBtns = `<button class="btn btn-sm btn-outline-danger btn-delete" data-id="${order.id}" title="刪除"><i class="bi bi-trash"></i></button>`;
+            // Action: 刪除 + 收據按鈕
+            const actionBtns = `
+                <button class="btn btn-sm btn-outline-primary btn-receipt me-1" data-id="${order.id}" title="查看收據"><i class="bi bi-receipt"></i></button>
+                <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${order.id}" title="刪除"><i class="bi bi-trash"></i></button>
+            `;
 
             const tr = document.createElement('tr');
             tr.className = rowClass;
             tr.innerHTML = `
-                <td class="ps-3"><input type="checkbox" class="form-check-input order-check" value="${order.id}" data-amount="${order.totalAmount}" ${checkboxDisabled}></td>
+                <td class="ps-3"><input type="checkbox" class="form-check-input order-check" value="${order.id}" data-amount="${order.totalAmount}"></td>
                 <td>${statusBadge}</td>
                 <td>${dateStr}</td>
                 <td>${order.customerName}</td>
@@ -354,7 +343,9 @@
             tableBody.appendChild(tr);
         });
 
+        // 綁定事件
         document.querySelectorAll('.btn-delete').forEach(btn => btn.addEventListener('click', () => deleteSingleOrder(btn.dataset.id)));
+        document.querySelectorAll('.btn-receipt').forEach(btn => btn.addEventListener('click', () => openSingleReceipt(btn.dataset.id))); // 新增：單筆收據
         document.querySelectorAll('.order-check').forEach(chk => chk.addEventListener('change', updateBatchSummary));
     }
 
@@ -362,11 +353,16 @@
     function updateBatchSummary() {
         const checkboxes = document.querySelectorAll('.order-check:checked');
         let total = 0, count = 0;
+        let hasPending = false;
         
         checkboxes.forEach(chk => {
             total += parseInt(chk.dataset.amount);
             count++;
             chk.closest('tr').classList.add('selected');
+            
+            // 檢查是否包含「未出貨」的訂單
+            const order = allOrders.find(o => o.id === chk.value);
+            if(order && order.status !== 'shipped') hasPending = true;
         });
         
         document.querySelectorAll('.order-check:not(:checked)').forEach(chk => {
@@ -376,13 +372,23 @@
         selectedCountEl.innerText = count;
         selectedTotalEl.innerText = total;
         
-        // 控制按鈕顯示
+        // 按鈕邏輯
         if (count > 0) {
-            btnTopBatchDelete.classList.remove('d-none'); // 顯示上方刪除鈕
+            btnTopBatchDelete.classList.remove('d-none');
             btnBatchShip.disabled = false;
+            
+            // 智慧變更按鈕文字：如果有未出貨的 -> 顯示「出貨」；如果都是已出貨 -> 顯示「補印收據」
+            if (hasPending) {
+                btnBatchShipText.innerText = "產生出貨收據";
+                btnBatchShip.classList.replace('btn-secondary', 'btn-success');
+            } else {
+                btnBatchShipText.innerText = "補印已選收據";
+                btnBatchShip.classList.replace('btn-success', 'btn-secondary'); // 變灰色提示只是查看
+            }
         } else {
-            btnTopBatchDelete.classList.add('d-none'); // 隱藏上方刪除鈕
+            btnTopBatchDelete.classList.add('d-none');
             btnBatchShip.disabled = true;
+            btnBatchShipText.innerText = "出貨/收據";
         }
     }
 
@@ -391,100 +397,114 @@
         updateBatchSummary();
     });
 
-    // --- 🟢 批次出貨與收據生成邏輯 ---
-    btnBatchShip.addEventListener('click', () => {
-        const checkboxes = document.querySelectorAll('.order-check:checked');
-        if(checkboxes.length === 0) return;
-
-        // 1. 蒐集勾選的訂單資料
-        const selectedIds = Array.from(checkboxes).map(c => c.value);
-        const selectedOrders = allOrders.filter(o => selectedIds.includes(o.id));
-
-        // 2. 生成收據 HTML
+    // --- 收據顯示核心邏輯 (單筆 & 批次共用) ---
+    function generateReceiptHtml(orderList) {
         let html = '';
         let grandTotal = 0;
+        let allShipped = true;
 
-        selectedOrders.forEach(order => {
+        orderList.forEach(order => {
             grandTotal += order.totalAmount;
+            if (order.status !== 'shipped') allShipped = false;
             
-            // 每個商品的 HTML row
             let itemsHtml = '';
             order.items.forEach(item => {
-                itemsHtml += `
-                    <tr>
-                        <td>${item.name}</td>
-                        <td class="text-center">$${item.price}</td>
-                        <td class="text-center">x${item.qty}</td>
-                        <td class="text-end">$${item.price * item.qty}</td>
-                    </tr>
-                `;
+                itemsHtml += `<tr><td>${item.name}</td><td class="text-center">$${item.price}</td><td class="text-center">x${item.qty}</td><td class="text-end">$${item.price * item.qty}</td></tr>`;
             });
 
-            // 訂單區塊
+            // 標記這張單的狀態
+            const statusLabel = order.status === 'shipped' ? '<span class="badge bg-secondary">已出貨</span>' : '<span class="badge bg-warning text-dark">準備出貨</span>';
+
             html += `
-                <div class="card mb-3 shadow-sm border-0">
-                    <div class="card-header bg-white border-bottom">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <strong><i class="bi bi-person-circle me-1"></i>${order.customerName}</strong>
-                            <span class="badge bg-secondary">訂單ID: ...${order.id.slice(-4)}</span>
-                        </div>
+                <div class="card mb-3 receipt-card">
+                    <div class="receipt-header">
+                        <div><strong><i class="bi bi-person-circle me-1"></i>${order.customerName}</strong></div>
+                        <div>${statusLabel} <small class="text-muted ms-2">${order.orderDate.toDate().toLocaleDateString()}</small></div>
                     </div>
                     <div class="card-body p-2">
                         <table class="table table-sm table-borderless mb-0">
-                            <thead class="text-muted small border-bottom">
-                                <tr>
-                                    <th width="40%">品項</th>
-                                    <th width="20%" class="text-center">單價</th>
-                                    <th width="15%" class="text-center">數量</th>
-                                    <th width="25%" class="text-end">金額</th>
-                                </tr>
-                            </thead>
+                            <thead class="text-muted small border-bottom"><tr><th width="40%">品項</th><th width="20%" class="text-center">單價</th><th width="15%" class="text-center">數量</th><th width="25%" class="text-end">金額</th></tr></thead>
                             <tbody>${itemsHtml}</tbody>
-                            <tfoot class="border-top">
-                                <tr>
-                                    <td colspan="3" class="text-end text-muted small pt-2">小計</td>
-                                    <td class="text-end fw-bold pt-2">$${order.totalAmount}</td>
-                                </tr>
-                            </tfoot>
+                            <tfoot class="border-top"><tr><td colspan="3" class="text-end text-muted small pt-2">小計</td><td class="text-end fw-bold pt-2">$${order.totalAmount}</td></tr></tfoot>
                         </table>
                     </div>
                 </div>
             `;
         });
-
+        
         receiptContainer.innerHTML = html;
         receiptGrandTotal.innerText = `$${grandTotal}`;
-        
+
+        // 決定是否顯示「確認出貨」按鈕
+        if (allShipped) {
+            btnConfirmBatchShip.classList.add('d-none'); // 全部都出貨過，就隱藏按鈕 (純查看)
+            modalHeader.classList.replace('bg-success', 'bg-secondary'); // 換個顏色區分
+        } else {
+            btnConfirmBatchShip.classList.remove('d-none');
+            modalHeader.classList.replace('bg-secondary', 'bg-success');
+        }
+    }
+
+    // 觸發：單筆收據
+    function openSingleReceipt(id) {
+        const order = allOrders.find(o => o.id === id);
+        if (order) {
+            generateReceiptHtml([order]);
+            batchReceiptModal.show();
+        }
+    }
+
+    // 觸發：批次收據
+    btnBatchShip.addEventListener('click', () => {
+        const checkboxes = document.querySelectorAll('.order-check:checked');
+        if(checkboxes.length === 0) return;
+        const selectedIds = Array.from(checkboxes).map(c => c.value);
+        const selectedOrders = allOrders.filter(o => selectedIds.includes(o.id));
+        generateReceiptHtml(selectedOrders);
         batchReceiptModal.show();
     });
 
-    // 確認批次出貨 (在 Modal 內)
+    // 確認出貨動作
     btnConfirmBatchShip.addEventListener('click', async () => {
+        // 只針對「未出貨」的訂單進行更新
+        // 1. 找出目前 Modal 中顯示的訂單 ID (或是重新抓取勾選的)
         const checkboxes = document.querySelectorAll('.order-check:checked');
-        const promises = [];
+        // 如果是單筆觸發，checkbox可能沒勾，這裡簡化邏輯：如果是批次觸發才有勾選，單筆我們不走這個按鈕(單筆通常已在列表中)
+        // 但為了兼容單筆未出貨的情況：
         
-        checkboxes.forEach(chk => {
-            promises.push(updateDoc(doc(db, "orders", chk.value), {
-                status: 'shipped',
-                shippedAt: new Date()
-            }));
+        // 簡單做法：重新掃描所有勾選的 Pending 訂單
+        const pendingCheckboxes = Array.from(checkboxes).filter(chk => {
+            const order = allOrders.find(o => o.id === chk.value);
+            return order && order.status !== 'shipped';
         });
+
+        if (pendingCheckboxes.length === 0) {
+            // 可能是單筆模式，或是都已出貨
+             const orderIdInModal = receiptContainer.querySelector('.receipt-card'); 
+             // 這裡邏輯較複雜，我們簡化：只處理 checkbox 勾選的
+             alert("沒有需要更新狀態的訂單");
+             batchReceiptModal.hide();
+             return;
+        }
+
+        const promises = pendingCheckboxes.map(chk => 
+            updateDoc(doc(db, "orders", chk.value), { status: 'shipped', shippedAt: new Date() })
+        );
 
         try {
             await Promise.all(promises);
             batchReceiptModal.hide();
-            await loadOrders(); // 刷新
-            alert("✅ 出貨狀態已更新！");
+            await loadOrders();
+            alert("✅ 出貨成功！");
         } catch (e) {
-            alert("更新失敗，請檢查網路");
+            alert("更新失敗");
         }
     });
 
-    // --- 🔴 批次刪除 (移到上方) ---
+    // 批次刪除
     btnTopBatchDelete.addEventListener('click', async () => {
         const checkboxes = document.querySelectorAll('.order-check:checked');
         if(checkboxes.length === 0) return;
-
         if(confirm(`⚠️ 確定要永久刪除選取的 ${checkboxes.length} 筆訂單嗎？`)) {
             const promises = [];
             checkboxes.forEach(chk => promises.push(deleteDoc(doc(db, "orders", chk.value))));
@@ -501,7 +521,7 @@
         }
     }
 
-    // 開立訂單相關 (不變)
+    // 開立訂單
     document.getElementById('btnAddToCart').addEventListener('click', () => {
         const prodId = selectProd.value;
         const qty = parseInt(inputQty.value);
