@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>團購系統 - 商品管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <style>
+        :root {
+            --soft-bg: #f8f9fa;
+            --navbar-bg: #8ab6d6;
+            --theme-color: #66bb6a; /* 薄荷綠主色 */
+            --theme-light: #e8f5e9; /* 淺綠背景 */
+            --theme-dark: #2e7d32;
+        }
+        
+        body { background-color: var(--soft-bg); }
+        
+        .navbar-custom { background-color: var(--navbar-bg) !important; }
+        
+        /* 卡片柔和化 */
+        .card { border: none; border-radius: 15px; overflow: hidden; }
+        .card-header-custom {
+            background-color: var(--theme-light);
+            color: var(--theme-dark);
+            font-weight: bold;
+            border-bottom: 2px solid var(--theme-color);
+        }
+        
+        /* 按鈕樣式 */
+        .btn-theme { background-color: var(--theme-color); color: white; border: none; }
+        .btn-theme:hover { background-color: var(--theme-dark); color: white; }
+        
+        .table-hover tbody tr:hover { background-color: var(--theme-light); }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark navbar-custom mb-4 shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="index.html"><i class="bi bi-shop-window me-2"></i>團購小幫手</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link active" href="products.html"><i class="bi bi-box2 me-1"></i>商品管理</a>
+                <a class="nav-link" href="customers.html"><i class="bi bi-people me-1"></i>客戶管理</a>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header card-header-custom">
+                    <i class="bi bi-pencil-square me-2"></i><span id="formTitle">新增商品</span>
+                </div>
+                <div class="card-body">
+                    <form id="productForm">
+                        <input type="hidden" id="editId"> <div class="mb-3">
+                            <label class="form-label text-muted small">商品名稱</label>
+                            <input type="text" class="form-control" id="pName" required placeholder="例如：韓國海苔">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">批發價 (成本)</label>
+                            <input type="number" class="form-control" id="pCost" required min="0">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">銷售價</label>
+                            <input type="number" class="form-control" id="pPrice" required min="0">
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-theme" id="submitBtn">新增商品</button>
+                            <button type="button" class="btn btn-secondary d-none" id="cancelBtn">取消編輯</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header card-header-custom d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-list-ul me-2"></i>商品清單</span>
+                    <input type="text" id="searchInput" class="form-control form-control-sm w-50" placeholder="搜尋商品名稱...">
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">名稱</th>
+                                <th>批發價</th>
+                                <th>銷售價</th>
+                                <th>毛利</th>
+                                <th class="text-end pe-4">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productTableBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, updateDoc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { firebaseConfig } from './firebase-config.js';
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 狀態變數
+    let isEditing = false;
+    let allProducts = [];
+
+    // DOM 元素
+    const form = document.getElementById('productForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const formTitle = document.getElementById('formTitle');
+
+    // 1. 提交表單 (新增或更新)
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const name = document.getElementById('pName').value.trim();
+        const cost = Number(document.getElementById('pCost').value);
+        const price = Number(document.getElementById('pPrice').value);
+        const editId = document.getElementById('editId').value;
+
+        if(!name) return;
+
+        try {
+            // 重複檢核：檢查是否有「相同名稱」但「不同ID」的資料
+            const q = query(collection(db, "products"), where("name", "==", name));
+            const snapshot = await getDocs(q);
+            
+            // 如果找到資料，且該資料的 ID 不等於當前正在編輯的 ID，代表名稱衝突
+            const isDuplicate = snapshot.docs.some(doc => doc.id !== editId);
+
+            if (isDuplicate) {
+                alert(`錯誤：商品名稱「${name}」已經存在！`);
+                return;
+            }
+
+            if (isEditing) {
+                // 更新模式
+                await updateDoc(doc(db, "products", editId), {
+                    name, cost, price, updatedAt: new Date()
+                });
+                alert("更新成功！");
+                resetForm();
+            } else {
+                // 新增模式
+                await addDoc(collection(db, "products"), {
+                    name, cost, price, createdAt: new Date()
+                });
+                alert("新增成功！");
+                form.reset();
+            }
+            loadProducts();
+        } catch (error) {
+            console.error("Error: ", error);
+            alert("操作失敗: " + error.message);
+        }
+    });
+
+    // 2. 讀取資料
+    async function loadProducts() {
+        const q = query(collection(db, "products"), orderBy("createdAt", "desc"));
+        const snapshot = await getDocs(q);
+        allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderTable(allProducts);
+    }
+
+    // 3. 渲染表格
+    function renderTable(data) {
+        const tbody = document.getElementById('productTableBody');
+        tbody.innerHTML = '';
+        data.forEach(item => {
+            const profit = item.price - item.cost;
+            const profitClass = profit >= 0 ? 'text-success' : 'text-danger';
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="ps-4 fw-medium">${item.name}</td>
+                <td class="text-secondary">$${item.cost}</td>
+                <td class="fw-bold">$${item.price}</td>
+                <td class="${profitClass}">$${profit}</td>
+                <td class="text-end pe-4">
+                    <button class="btn btn-sm btn-outline-primary me-1 btn-edit" data-id="${item.id}">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${item.id}">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // 綁定按鈕事件 (避免innerHTML重繪後失效)
+        document.querySelectorAll('.btn-edit').forEach(btn => {
+            btn.addEventListener('click', () => startEdit(btn.dataset.id));
+        });
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.addEventListener('click', () => deleteProduct(btn.dataset.id));
+        });
+    }
+
+    // 4. 開始編輯
+    function startEdit(id) {
+        const product = allProducts.find(p => p.id === id);
+        if (!product) return;
+
+        document.getElementById('editId').value = product.id;
+        document.getElementById('pName').value = product.name;
+        document.getElementById('pCost').value = product.cost;
+        document.getElementById('pPrice').value = product.price;
+
+        // 切換 UI 狀態
+        isEditing = true;
+        formTitle.textContent = "編輯商品";
+        submitBtn.textContent = "確認更新";
+        submitBtn.classList.replace('btn-theme', 'btn-warning');
+        cancelBtn.classList.remove('d-none');
+    }
+
+    // 5. 取消編輯
+    cancelBtn.addEventListener('click', resetForm);
+
+    function resetForm() {
+        isEditing = false;
+        form.reset();
+        document.getElementById('editId').value = '';
+        
+        formTitle.textContent = "新增商品";
+        submitBtn.textContent = "新增商品";
+        submitBtn.classList.replace('btn-warning', 'btn-theme');
+        cancelBtn.classList.add('d-none');
+    }
+
+    // 6. 刪除資料
+    async function deleteProduct(id) {
+        if(confirm("確定要刪除這個商品嗎？此動作無法復原。")) {
+            try {
+                await deleteDoc(doc(db, "products", id));
+                loadProducts();
+            } catch (error) {
+                console.error("Delete Error: ", error);
+            }
+        }
+    }
+
+    // 7. 搜尋
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+        const keyword = e.target.value.toLowerCase();
+        const filtered = allProducts.filter(p => p.name.toLowerCase().includes(keyword));
+        renderTable(filtered);
+    });
+
+    loadProducts();
+</script>
+</body>
+</html>
