@@ -11,7 +11,7 @@
         :root {
             --soft-bg: #f8f9fa;
             --navbar-bg: #8ab6d6;
-            --theme-color: #9575cd; /* 紫藤色 */
+            --theme-color: #9575cd;
             --theme-light: #ede7f6;
             --theme-dark: #512da8;
         }
@@ -36,7 +36,7 @@
         .status-shipped { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         
         tr.row-shipped { opacity: 0.7; background-color: #fafafa; }
-        tr.selected { background-color: #e8f5e9 !important; } /* 勾選時變綠色 */
+        tr.selected { background-color: #e8f5e9 !important; }
 
         .checkout-panel {
             background-color: #fff;
@@ -45,6 +45,22 @@
             position: sticky; bottom: 0;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
             z-index: 100;
+        }
+
+        /* 收據樣式 */
+        .receipt-item {
+            border-bottom: 1px dashed #ddd;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        .receipt-header {
+            background-color: #f8f9fa;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            color: #555;
+            display: flex;
+            justify-content: space-between;
         }
     </style>
 </head>
@@ -118,10 +134,18 @@
         <div class="col-lg-8">
             <div class="card shadow-sm h-100 d-flex flex-column">
                 <div class="card-header card-header-custom d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-clipboard-data me-2"></i><span id="rightPanelTitle">未出貨訂單</span></span>
-                    <button class="btn btn-sm btn-outline-dark" id="btnToggleShowAll">
-                        <i class="bi bi-eye"></i> 顯示全部歷史
-                    </button>
+                    <div>
+                        <i class="bi bi-clipboard-data me-2"></i><span id="rightPanelTitle">未出貨訂單</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-danger d-none" id="btnTopBatchDelete">
+                            <i class="bi bi-trash-fill"></i> 刪除選取
+                        </button>
+                        
+                        <button class="btn btn-sm btn-outline-dark" id="btnToggleShowAll">
+                            <i class="bi bi-eye"></i> 歷史紀錄
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="card-body p-0 flex-grow-1" style="overflow-y: auto; max-height: 600px;">
@@ -148,15 +172,11 @@
                             <small class="text-muted">已勾選 <span id="selectedCount" class="fw-bold text-primary">0</span> 筆</small>
                         </div>
                         <div class="col-md-7 text-end">
-                            <div class="d-flex justify-content-end align-items-center gap-2">
+                            <div class="d-flex justify-content-end align-items-center gap-3">
                                 <span class="me-2">選取總計: <strong class="text-danger fs-4">$<span id="selectedTotal">0</span></strong></span>
                                 
-                                <button class="btn btn-success btn-sm text-white" id="btnBatchShip" disabled>
-                                    <i class="bi bi-truck"></i> 批次出貨
-                                </button>
-                                
-                                <button class="btn btn-outline-danger btn-sm" id="btnBatchDelete" disabled>
-                                    <i class="bi bi-trash"></i> 刪除
+                                <button class="btn btn-success btn text-white px-4" id="btnBatchShip" disabled>
+                                    <i class="bi bi-receipt"></i> 產生出貨收據
                                 </button>
                             </div>
                         </div>
@@ -167,32 +187,25 @@
     </div>
 </div>
 
-<div class="modal fade" id="shipmentModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+<div class="modal fade" id="batchReceiptModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable"> <div class="modal-content">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">出貨與收款確認</h5>
+                <h5 class="modal-title"><i class="bi bi-receipt-cutoff me-2"></i>批次出貨收據確認</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <div class="text-center mb-3">
-                    <h2 class="text-success fw-bold">$<span id="modalShipTotal">0</span></h2>
-                    <p class="text-muted">應收金額</p>
+            <div class="modal-body bg-light">
+                <div id="receiptContainer" class="p-2">
+                    </div>
+                
+                <div class="text-end mt-4 pt-3 border-top border-2">
+                    <h4 class="fw-bold">總應收金額: <span class="text-danger" id="receiptGrandTotal">$0</span></h4>
                 </div>
-                <ul class="list-group list-group-flush mb-3">
-                    <li class="list-group-item d-flex justify-content-between">
-                        <span>客戶名稱</span>
-                        <strong id="modalShipCustomer"></strong>
-                    </li>
-                    <li class="list-group-item">
-                        <span>出貨商品：</span>
-                        <ul id="modalShipItems" class="mt-2 mb-0 text-muted small"></ul>
-                    </li>
-                </ul>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-success" id="btnConfirmShip">確認出貨</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">返回修改</button>
+                <button type="button" class="btn btn-success btn-lg" id="btnConfirmBatchShip">
+                    <i class="bi bi-check-lg"></i> 確認出貨 (更新狀態)
+                </button>
             </div>
         </div>
     </div>
@@ -207,9 +220,9 @@
     const db = getFirestore(app);
 
     let allProducts = [], allCustomers = [], currentCart = [], allOrders = [], displayedOrders = [];
-    let isShowingAll = false, orderToShip = null;
+    let isShowingAll = false;
 
-    // DOM
+    // DOM 元素
     const selectCust = document.getElementById('selectCustomer');
     const selectProd = document.getElementById('selectProduct');
     const inputQty = document.getElementById('inputQty');
@@ -224,11 +237,16 @@
     
     const selectedCountEl = document.getElementById('selectedCount');
     const selectedTotalEl = document.getElementById('selectedTotal');
-    const btnBatchDelete = document.getElementById('btnBatchDelete');
-    const btnBatchShip = document.getElementById('btnBatchShip'); // 新按鈕
+    
+    // 按鈕
+    const btnTopBatchDelete = document.getElementById('btnTopBatchDelete'); // 上方刪除
+    const btnBatchShip = document.getElementById('btnBatchShip'); // 下方出貨
 
-    const shipmentModal = new bootstrap.Modal(document.getElementById('shipmentModal'));
-    const btnConfirmShip = document.getElementById('btnConfirmShip');
+    // Modal
+    const batchReceiptModal = new bootstrap.Modal(document.getElementById('batchReceiptModal'));
+    const btnConfirmBatchShip = document.getElementById('btnConfirmBatchShip');
+    const receiptContainer = document.getElementById('receiptContainer');
+    const receiptGrandTotal = document.getElementById('receiptGrandTotal');
 
     // 1. 初始化
     async function initData() {
@@ -254,10 +272,8 @@
     btnToggleShowAll.addEventListener('click', () => {
         isShowingAll = !isShowingAll;
         if (isShowingAll) {
-            btnToggleShowAll.innerHTML = '<i class="bi bi-eye-slash"></i> 隱藏已出貨';
             btnToggleShowAll.classList.replace('btn-outline-dark', 'btn-dark');
         } else {
-            btnToggleShowAll.innerHTML = '<i class="bi bi-eye"></i> 顯示全部歷史';
             btnToggleShowAll.classList.replace('btn-dark', 'btn-outline-dark');
         }
         applyFilters();
@@ -318,15 +334,16 @@
                 : '<span class="status-badge status-pending">未出貨</span>';
             const rowClass = isShipped ? 'row-shipped' : '';
 
-            const actionBtns = isShipped 
-                ? `<button class="btn btn-sm btn-outline-danger btn-delete" data-id="${order.id}" title="刪除"><i class="bi bi-trash"></i></button>`
-                : `<button class="btn btn-sm btn-success btn-ship me-1" data-id="${order.id}" title="出貨收款"><i class="bi bi-truck"></i></button>
-                   <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${order.id}" title="刪除"><i class="bi bi-trash"></i></button>`;
+            // 已出貨的不能被刪除/出貨，所以 disable checkbox
+            const checkboxDisabled = isShipped ? 'disabled' : '';
+
+            // 單行操作按鈕 (僅保留刪除，出貨統一用批次)
+            const actionBtns = `<button class="btn btn-sm btn-outline-danger btn-delete" data-id="${order.id}" title="刪除"><i class="bi bi-trash"></i></button>`;
 
             const tr = document.createElement('tr');
             tr.className = rowClass;
             tr.innerHTML = `
-                <td class="ps-3"><input type="checkbox" class="form-check-input order-check" value="${order.id}" data-amount="${order.totalAmount}"></td>
+                <td class="ps-3"><input type="checkbox" class="form-check-input order-check" value="${order.id}" data-amount="${order.totalAmount}" ${checkboxDisabled}></td>
                 <td>${statusBadge}</td>
                 <td>${dateStr}</td>
                 <td>${order.customerName}</td>
@@ -337,7 +354,6 @@
             tableBody.appendChild(tr);
         });
 
-        document.querySelectorAll('.btn-ship').forEach(btn => btn.addEventListener('click', () => openShipModal(btn.dataset.id)));
         document.querySelectorAll('.btn-delete').forEach(btn => btn.addEventListener('click', () => deleteSingleOrder(btn.dataset.id)));
         document.querySelectorAll('.order-check').forEach(chk => chk.addEventListener('change', updateBatchSummary));
     }
@@ -360,48 +376,116 @@
         selectedCountEl.innerText = count;
         selectedTotalEl.innerText = total;
         
-        // 啟用或停用按鈕
-        btnBatchDelete.disabled = count === 0;
-        btnBatchShip.disabled = count === 0;
+        // 控制按鈕顯示
+        if (count > 0) {
+            btnTopBatchDelete.classList.remove('d-none'); // 顯示上方刪除鈕
+            btnBatchShip.disabled = false;
+        } else {
+            btnTopBatchDelete.classList.add('d-none'); // 隱藏上方刪除鈕
+            btnBatchShip.disabled = true;
+        }
     }
 
     checkAll.addEventListener('change', (e) => {
-        document.querySelectorAll('.order-check').forEach(chk => chk.checked = e.target.checked);
+        document.querySelectorAll('.order-check:not(:disabled)').forEach(chk => chk.checked = e.target.checked);
         updateBatchSummary();
     });
 
-    // --- 批次出貨功能 ---
-    btnBatchShip.addEventListener('click', async () => {
+    // --- 🟢 批次出貨與收據生成邏輯 ---
+    btnBatchShip.addEventListener('click', () => {
         const checkboxes = document.querySelectorAll('.order-check:checked');
         if(checkboxes.length === 0) return;
 
-        if(confirm(`確定要將這 ${checkboxes.length} 筆訂單標記為已出貨嗎？`)) {
-            try {
-                // 平行處理所有更新請求
-                const promises = [];
-                checkboxes.forEach(chk => {
-                    promises.push(updateDoc(doc(db, "orders", chk.value), {
-                        status: 'shipped',
-                        shippedAt: new Date()
-                    }));
-                });
-                
-                await Promise.all(promises);
-                alert("批次出貨完成！");
-                await loadOrders(); // 刷新列表
-            } catch (error) {
-                console.error(error);
-                alert("部分訂單更新失敗，請檢查網路");
-            }
+        // 1. 蒐集勾選的訂單資料
+        const selectedIds = Array.from(checkboxes).map(c => c.value);
+        const selectedOrders = allOrders.filter(o => selectedIds.includes(o.id));
+
+        // 2. 生成收據 HTML
+        let html = '';
+        let grandTotal = 0;
+
+        selectedOrders.forEach(order => {
+            grandTotal += order.totalAmount;
+            
+            // 每個商品的 HTML row
+            let itemsHtml = '';
+            order.items.forEach(item => {
+                itemsHtml += `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td class="text-center">$${item.price}</td>
+                        <td class="text-center">x${item.qty}</td>
+                        <td class="text-end">$${item.price * item.qty}</td>
+                    </tr>
+                `;
+            });
+
+            // 訂單區塊
+            html += `
+                <div class="card mb-3 shadow-sm border-0">
+                    <div class="card-header bg-white border-bottom">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong><i class="bi bi-person-circle me-1"></i>${order.customerName}</strong>
+                            <span class="badge bg-secondary">訂單ID: ...${order.id.slice(-4)}</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-2">
+                        <table class="table table-sm table-borderless mb-0">
+                            <thead class="text-muted small border-bottom">
+                                <tr>
+                                    <th width="40%">品項</th>
+                                    <th width="20%" class="text-center">單價</th>
+                                    <th width="15%" class="text-center">數量</th>
+                                    <th width="25%" class="text-end">金額</th>
+                                </tr>
+                            </thead>
+                            <tbody>${itemsHtml}</tbody>
+                            <tfoot class="border-top">
+                                <tr>
+                                    <td colspan="3" class="text-end text-muted small pt-2">小計</td>
+                                    <td class="text-end fw-bold pt-2">$${order.totalAmount}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            `;
+        });
+
+        receiptContainer.innerHTML = html;
+        receiptGrandTotal.innerText = `$${grandTotal}`;
+        
+        batchReceiptModal.show();
+    });
+
+    // 確認批次出貨 (在 Modal 內)
+    btnConfirmBatchShip.addEventListener('click', async () => {
+        const checkboxes = document.querySelectorAll('.order-check:checked');
+        const promises = [];
+        
+        checkboxes.forEach(chk => {
+            promises.push(updateDoc(doc(db, "orders", chk.value), {
+                status: 'shipped',
+                shippedAt: new Date()
+            }));
+        });
+
+        try {
+            await Promise.all(promises);
+            batchReceiptModal.hide();
+            await loadOrders(); // 刷新
+            alert("✅ 出貨狀態已更新！");
+        } catch (e) {
+            alert("更新失敗，請檢查網路");
         }
     });
 
-    // --- 批次刪除功能 ---
-    btnBatchDelete.addEventListener('click', async () => {
+    // --- 🔴 批次刪除 (移到上方) ---
+    btnTopBatchDelete.addEventListener('click', async () => {
         const checkboxes = document.querySelectorAll('.order-check:checked');
         if(checkboxes.length === 0) return;
 
-        if(confirm(`確定要刪除這 ${checkboxes.length} 筆資料嗎？`)) {
+        if(confirm(`⚠️ 確定要永久刪除選取的 ${checkboxes.length} 筆訂單嗎？`)) {
             const promises = [];
             checkboxes.forEach(chk => promises.push(deleteDoc(doc(db, "orders", chk.value))));
             await Promise.all(promises);
@@ -409,28 +493,7 @@
         }
     });
 
-    // 4. 單筆出貨
-    function openShipModal(id) {
-        orderToShip = allOrders.find(o => o.id === id);
-        if(!orderToShip) return;
-        document.getElementById('modalShipTotal').innerText = orderToShip.totalAmount;
-        document.getElementById('modalShipCustomer').innerText = orderToShip.customerName;
-        const list = document.getElementById('modalShipItems');
-        list.innerHTML = '';
-        orderToShip.items.forEach(item => list.innerHTML += `<li>${item.name} <span class="text-muted">x${item.qty}</span></li>`);
-        shipmentModal.show();
-    }
-
-    btnConfirmShip.addEventListener('click', async () => {
-        if(!orderToShip) return;
-        try {
-            await updateDoc(doc(db, "orders", orderToShip.id), { status: 'shipped', shippedAt: new Date() });
-            shipmentModal.hide();
-            await loadOrders();
-        } catch(e) { alert("失敗"); }
-    });
-
-    // 5. 其他功能 (開單、刪除)
+    // 單筆刪除
     async function deleteSingleOrder(id) {
         if(confirm("確定要刪除此筆訂單？")) {
             await deleteDoc(doc(db, "orders", id));
@@ -438,6 +501,7 @@
         }
     }
 
+    // 開立訂單相關 (不變)
     document.getElementById('btnAddToCart').addEventListener('click', () => {
         const prodId = selectProd.value;
         const qty = parseInt(inputQty.value);
