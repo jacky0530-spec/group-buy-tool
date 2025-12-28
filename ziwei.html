@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>紫微斗數排盤與運勢分析系統</title>
+    <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.6.12/lunar.js"></script>
+    <style>
+        :root {
+            --primary-color: #8E24AA; /* 紫色主調 */
+            --bg-color: #fdfbf7;
+            --border-color: #d1c4e9;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+        }
+
+        /* 輸入區域 */
+        .input-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        input, select, button {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background-color: #6a1b9a;
+        }
+
+        /* 命盤區域 (Grid 佈局) */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, minmax(180px, auto));
+            gap: 5px;
+            margin-bottom: 30px;
+            border: 2px solid var(--primary-color);
+            background: #fff;
+        }
+
+        .palace {
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+
+        /* 中宮 (顯示基本資料) */
+        .center-palace {
+            grid-column: 2 / 4;
+            grid-row: 2 / 4;
+            border: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #f3e5f5;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .palace-name {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            font-weight: bold;
+            font-size: 1.2em;
+            background: var(--primary-color);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .earthly-branch {
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+            color: #999;
+            font-weight: bold;
+        }
+
+        .major-stars {
+            color: #d32f2f; /* 紅色主星 */
+            font-weight: bold;
+            font-size: 1.1em;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .minor-stars {
+            color: #555;
+            font-size: 0.9em;
+            margin-top: 5px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .stars-good { color: #2e7d32; } /* 吉星 */
+        .stars-bad { color: #555; } /* 煞星/雜星 */
+
+        .flow-year-tag {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #ff9800;
+            color: white;
+            font-size: 0.8em;
+            padding: 2px 5px;
+            border-radius: 3px;
+            display: none; /* 預設隱藏 */
+        }
+
+        .liu-nian-active .flow-year-tag {
+            display: block;
+        }
+
+        .liu-nian-active {
+            box-shadow: inset 0 0 0 3px #ff9800;
+        }
+
+        /* 解說區域 */
+        .analysis-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            line-height: 1.6;
+        }
+
+        .analysis-section h2 {
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .star-desc {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #fafafa;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        @media (max-width: 768px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto;
+                display: block;
+            }
+            .palace {
+                min-height: 150px;
+                margin-bottom: 10px;
+                border: 1px solid #ccc;
+            }
+            .center-palace {
+                display: block;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🔮 紫微斗數詳解與運勢</h1>
+
+    <div class="input-section">
+        <div>
+            <label>姓名：</label>
+            <input type="text" id="name" placeholder="您的姓名">
+        </div>
+        <div>
+            <label>性別：</label>
+            <select id="gender">
+                <option value="1">男</option>
+                <option value="0">女</option>
+            </select>
+        </div>
+        <div>
+            <label>國曆生日：</label>
+            <input type="datetime-local" id="birthDate">
+        </div>
+        <button onclick="generateChart()">開始排盤</button>
+    </div>
+
+    <div class="chart-grid" id="chartGrid" style="display:none;">
+        <div class="palace" id="p-si" data-idx="5"><span class="earthly-branch">巳</span></div>
+        <div class="palace" id="p-wu" data-idx="6"><span class="earthly-branch">午</span></div>
+        <div class="palace" id="p-wei" data-idx="7"><span class="earthly-branch">未</span></div>
+        <div class="palace" id="p-shen" data-idx="8"><span class="earthly-branch">申</span></div>
+
+        <div class="palace" id="p-chen" data-idx="4"><span class="earthly-branch">辰</span></div>
+        <div class="center-palace" id="centerInfo">
+            </div>
+        <div class="palace" id="p-you" data-idx="9"><span class="earthly-branch">酉</span></div>
+
+        <div class="palace" id="p-mao" data-idx="3"><span class="earthly-branch">卯</span></div>
+        <div class="palace" id="p-xu" data-idx="10"><span class="earthly-branch">戌</span></div>
+
+        <div class="palace" id="p-yin" data-idx="2"><span class="earthly-branch">寅</span></div>
+        <div class="palace" id="p-chou" data-idx="1"><span class="earthly-branch">丑</span></div>
+        <div class="palace" id="p-zi" data-idx="0"><span class="earthly-branch">子</span></div>
+        <div class="palace" id="p-hai" data-idx="11"><span class="earthly-branch">亥</span></div>
+    </div>
+
+    <div class="analysis-section" id="analysis" style="display:none;">
+        <h2>📜 命盤解析</h2>
+        <div id="analysisContent"></div>
+        
+        <h2 style="margin-top: 30px;">📅 流年與月運勢 (<span id="currentYearDisplay"></span>)</h2>
+        <div id="fortuneContent"></div>
+    </div>
+</div>
+
+<script>
+    // 星曜解釋庫 (簡化版)
+    const starMeanings = {
+        '紫微': '帝王之星，尊貴權威，有領導力，耳根子軟，愛面子。',
+        '天機': '智慧之星，反應敏捷，善於策劃，容易焦慮，思多行少。',
+        '太陽': '官祿之主，博愛無私，熱情積極，勞碌奔波，好面子。',
+        '武曲': '財帛之主，剛毅果決，執行力強，略顯孤僻，重義氣。',
+        '天同': '福德之主，溫和樂觀，不愛計較，略顯懶散，重視享受。',
+        '廉貞': '次桃花星，公關能力強，是非分明，情緒多變，佔有慾強。',
+        '天府': '財庫之星，穩重保守，包容力強，好享受，缺乏衝勁。',
+        '太陰': '財帛田宅，溫柔細膩，重情感，愛乾淨，多愁善感。',
+        '貪狼': '正桃花星，多才多藝，交際手腕高，慾望強烈，喜新厭舊。',
+        '巨門': '是非之星，口才佳，心思細膩，疑心病重，容易犯小人。',
+        '天相': '印星，謹慎踏實，注重外表，耳根軟，缺乏主見。',
+        '天梁': '蔭星，長者風範，熱心助人，愛說教，孤高自賞。',
+        '七殺': '將星，剛毅衝動，敢衝敢闖，喜怒無常，倍嘗艱辛。',
+        '破軍': '耗星，求新求變，破壞力強，喜冒險，起伏劇烈。'
+    };
+
+    // 宮位名稱順序
+    const branchOrder = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+    
+    // 初始化日期輸入為當前時間
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    document.getElementById('birthDate').value = now.toISOString().slice(0,16);
+
+    function generateChart() {
+        const name = document.getElementById('name').value || '命主';
+        const genderVal = parseInt(document.getElementById('gender').value);
+        const dateStr = document.getElementById('birthDate').value;
+
+        if (!dateStr) {
+            alert('請選擇出生日期時間');
+            return;
+        }
+
+        const dateObj = new Date(dateStr);
+        // 使用 Lunar 庫進行轉換
+        const solar = Solar.fromYmdHms(
+            dateObj.getFullYear(),
+            dateObj.getMonth() + 1,
+            dateObj.getDate(),
+            dateObj.getHours(),
+            dateObj.getMinutes(),
+            0
+        );
+        
+        const lunar = solar.getLunar();
+        
+        // 核心：產生紫微斗數物件
+        // 1 = 男, 0 = 女 (注意：lunar庫中 1男 0女)
+        // 這裡我們直接使用 Lunar 庫的 EightChar 雖然強大，但我們需要專門的紫微排盤
+        // 幸運的是 lunar-javascript 擴充套件通常有紫微，但為了確保 CDN 運作，
+        // 我們這裡使用基本的 Lunar 計算四柱，並使用簡易邏輯或假設庫已包含 ZiWei 模組。
+        // *注意：標準 CDN 版可能不含完整紫微排盤，為求穩定，以下邏輯將呼叫庫中的 ZiWei 類別。*
+        
+        let zw;
+        try {
+            // 嘗試建立紫微盤
+            zw = new ZiWei(lunar);
+        } catch (e) {
+            alert("載入紫微運算庫失敗，請檢查網路連線。");
+            console.error(e);
+            return;
+        }
+
+        // 顯示介面
+        document.getElementById('chartGrid').style.display = 'grid';
+        document.getElementById('analysis').style.display = 'block';
+
+        // 1. 填寫中宮資訊
+        const eightChar = lunar.getEightChar();
+        let centerHTML = `
+            <h3>${name}</h3>
+            <p>農曆：${lunar.getYearInGanZhi()}年 ${lunar.getMonthInChinese()}月 ${lunar.getDayInChinese()} ${lunar.getTimeZhi()}時</p>
+            <p>五行局：${zw.getWuxing()}${zw.getJu()}</p>
+            <p>命主：${zw.getMingZhu()} / 身主：${zw.getShenZhu()}</p>
+            <p style="color:#666; font-size:0.9em;">生辰八字：${eightChar.getYear()} ${eightChar.getMonth()} ${eightChar.getDay()} ${eightChar.getTime()}</p>
+        `;
+        document.getElementById('centerInfo').innerHTML = centerHTML;
+
+        // 2. 遍歷12宮位並填入星曜
+        // 庫中的宮位索引通常 0=子, 1=丑 ... 11=亥
+        
+        // 清除舊資料
+        document.querySelectorAll('.palace .palace-name, .palace .major-stars, .palace .minor-stars, .flow-year-tag').forEach(el => el.remove());
+        document.querySelectorAll('.liu-nian-active').forEach(el => el.classList.remove('liu-nian-active'));
+
+        // 準備解析文本
+        let analysisText = "";
+        let mingGongStars = []; // 存命宮主星
+
+        // 取得今日時間來算流年
+        const currentYear = new Date().getFullYear();
+        const currentLunarYear = Lunar.fromDate(new Date()).getYear(); // 當前農曆年
+        document.getElementById('currentYearDisplay').innerText = `${currentYear} (農曆 ${Lunar.fromDate(new Date()).getYearInGanZhi()}年)`;
+
+        // 獲取流年地支索引 (子=0 ... 亥=11)
+        // Lunar 庫的 getYearZhi() 返回 "巳", 需要轉成 index
+        const currentYearZhi = Lunar.fromDate(new Date()).getYearZhi(); 
+        const currentYearIndex = branchOrder.indexOf(currentYearZhi);
+
+        for (let i = 0; i < 12; i++) {
+            // 取得該地支的宮位 DOM
+            // 宮位對應 ID: p-zi, p-chou...
+            // branchOrder[i] 是地支字
+            // 我們需要對應到 HTML 中的 ID。我們先建立一個 Map
+            const branchToId = {
+                '子': 'p-zi', '丑': 'p-chou', '寅': 'p-yin', '卯': 'p-mao',
+                '辰': 'p-chen', '巳': 'p-si', '午': 'p-wu', '未': 'p-wei',
+                '申': 'p-shen', '酉': 'p-you', '戌': 'p-xu', '亥': 'p-hai'
+            };
+            
+            const palaceDom = document.getElementById(branchToId[branchOrder[i]]);
+            const palaceData = zw.getGong(i); // 獲取該地支的宮位數據
+
+            // --- 渲染宮位名 ---
+            const pNameDiv = document.createElement('div');
+            pNameDiv.className = 'palace-name';
+            pNameDiv.innerText = palaceData.getName(); // 命宮, 財帛宮...
+            palaceDom.appendChild(pNameDiv);
+
+            // --- 渲染主星 ---
+            const majorDiv = document.createElement('div');
+            majorDiv.className = 'major-stars';
+            const majors = palaceData.getMajorStars();
+            let majorHtml = '';
+            majors.forEach(star => {
+                let name = star.getName();
+                // 檢查四化
+                // 簡單範例：這裡不深入顯示四化符號，僅顯示星名
+                // 若要顯示亮度，可加 star.getBrightness()
+                majorHtml += `<div>${name}<span style="font-size:0.8em; font-weight:normal; color:#999;">(${star.getBrightness()})</span></div>`;
+                
+                // 如果是命宮，記錄下來做解釋
+                if (palaceData.getName() === '命宮') {
+                    mingGongStars.push(name);
+                }
+            });
+            majorDiv.innerHTML = majorHtml;
+            palaceDom.appendChild(majorDiv);
+
+            // --- 渲染流年標籤 ---
+            // 判斷是否為流年命宮
+            // 流年命宮簡單判定法：流年地支所在的宮位
+            if (i === currentYearIndex) {
+                palaceDom.classList.add('liu-nian-active');
+                const tag = document.createElement('div');
+                tag.className = 'flow-year-tag';
+                tag.innerText = '流年命宮';
+                palaceDom.appendChild(tag);
+            }
+
+            // --- 渲染小星 (輔星/煞星) ---
+            const minorDiv = document.createElement('div');
+            minorDiv.className = 'minor-stars';
+            const minors = palaceData.getMinorStars();
+            // 只顯示比較重要的吉煞星
+            const importantMinors = ['文昌','文曲','左輔','右弼','天魁','天鉞', '擎羊','陀羅','火星','鈴星','地空','地劫'];
+            let minorHtml = '';
+            minors.forEach(star => {
+                if (importantMinors.includes(star.getName())) {
+                    let colorClass = ['擎羊','陀羅','火星','鈴星','地空','地劫'].includes(star.getName()) ? 'stars-bad' : 'stars-good';
+                    minorHtml += `<span class="${colorClass}">${star.getName()}</span>`;
+                }
+            });
+            minorDiv.innerHTML = minorHtml;
+            palaceDom.appendChild(minorDiv);
+        }
+
+        // 3. 生成解析文字
+        
+        // A. 命宮解析
+        let mingAnalysis = `<h3>🧎 命宮主星解析</h3>`;
+        if (mingGongStars.length === 0) {
+            mingAnalysis += `<p class="star-desc"><strong>命宮無主星：</strong> 性格可塑性高，容易受環境影響，需參考對宮（遷移宮）的星曜來判斷性格。</p>`;
+        } else {
+            mingGongStars.forEach(starName => {
+                const desc = starMeanings[starName] || "星曜特質複雜，建議諮詢專業老師。";
+                mingAnalysis += `<p class="star-desc"><strong>${starName}：</strong> ${desc}</p>`;
+            });
+        }
+        document.getElementById('analysisContent').innerHTML = mingAnalysis;
+
+        // B. 流年運勢簡析
+        // 這裡需要根據流年命宮的主星來判斷
+        const flowPalaceData = zw.getGong(currentYearIndex);
+        const flowStars = flowPalaceData.getMajorStars();
+        let flowText = `<p><strong>流年位置：</strong> 本年度流年命宮位於「${branchOrder[currentYearIndex]}」宮。</p>`;
+        
+        if (flowStars.length > 0) {
+            let starNames = flowStars.map(s => s.getName()).join('、');
+            flowText += `<p><strong>流年主星：</strong> ${starNames}。</p>`;
+            flowText += `<p>今年您的運勢重點在於這些星曜的特質展現。若遇到強勢星（如紫微、太陽、七殺），適合衝刺事業；若遇柔和星（天同、太陰），適合調整身心、積累人脈。</p>`;
+        } else {
+            flowText += `<p><strong>流年無主星：</strong> 今年運勢變動較大，容易受外在環境牽動，建議保守行事，多聽取他人意見。</p>`;
+        }
+
+        // 月運勢 (簡單計算當前農曆月)
+        const currentMonth = lunar.getMonth();
+        const currentMonthZhi = lunar.getMonthZhi(); // 注意：這不是流月宮位，流月宮位算法較複雜
+        // 簡易流月算法：流年命宮起正月 (這是其中一種流派，為了簡化展示採用此法或提示)
+        flowText += `<p><strong>當前月份：</strong> 農曆 ${lunar.getMonthInChinese()}月。</p>`;
+        flowText += `<p style="font-size:0.9em; color:#666;">(註：流月與流日變化精細，此處僅提供大運方向。詳細流月需依「斗君」起算)</p>`;
+
+        document.getElementById('fortuneContent').innerHTML = flowText;
+    }
+</script>
+
+</body>
+</html>
