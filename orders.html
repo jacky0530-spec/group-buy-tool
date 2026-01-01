@@ -45,7 +45,6 @@
         .receipt-card { border: 1px solid #eee; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; }
         .receipt-header { background-color: #f8f9fa; padding: 8px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
 
-        /* 搜尋選單樣式優化 */
         .dropdown-menu-scroll { max-height: 300px; overflow-y: auto; }
         .dropdown-item-custom { cursor: pointer; padding: 10px 15px; border-bottom: 1px solid #f1f1f1; transition: background 0.2s; }
         .dropdown-item-custom:hover { background-color: var(--theme-light); color: var(--theme-dark); }
@@ -80,7 +79,6 @@
                     <i class="bi bi-cart-plus me-2"></i>開立新訂單
                 </div>
                 <div class="card-body">
-                    
                     <div class="mb-3">
                         <label class="form-label text-muted small">選擇客戶 (自動篩選右側)</label>
                         <div class="dropdown">
@@ -92,14 +90,11 @@
                                 <div class="search-box-container" onclick="event.stopPropagation()">
                                     <input type="text" class="form-control" id="custSearchInput" placeholder="輸入姓名或Line暱稱..." autocomplete="off">
                                 </div>
-                                <div id="custListContainer">
-                                    </div>
+                                <div id="custListContainer"></div>
                             </div>
                         </div>
                     </div>
-
                     <hr>
-
                     <div class="bg-light p-3 rounded mb-3">
                         <div class="mb-2">
                             <label class="form-label text-muted small">選擇商品</label>
@@ -112,8 +107,7 @@
                                     <div class="search-box-container" onclick="event.stopPropagation()">
                                         <input type="text" class="form-control" id="prodSearchInput" placeholder="輸入商品名稱..." autocomplete="off">
                                     </div>
-                                    <div id="prodListContainer">
-                                        </div>
+                                    <div id="prodListContainer"></div>
                                 </div>
                             </div>
                         </div>
@@ -129,7 +123,6 @@
                             </div>
                         </div>
                     </div>
-
                     <h6 class="text-muted small mt-4"><i class="bi bi-basket me-1"></i>本次購買內容</h6>
                     <div id="cartList" class="mb-3" style="min-height: 100px;">
                         <div class="text-center text-muted py-4 small">尚未加入商品</div>
@@ -232,11 +225,10 @@
 
     let allProducts = [], allCustomers = [], currentCart = [], allOrders = [], displayedOrders = [];
     let isShowingAll = false;
-    
     let selectedCustId = null;
     let selectedProdId = null;
 
-    // DOM 元素
+    // DOM
     const inputQty = document.getElementById('inputQty');
     const cartList = document.getElementById('cartList');
     const totalDisplay = document.getElementById('cartTotalDisplay');
@@ -253,39 +245,35 @@
     const btnBatchShip = document.getElementById('btnBatchShip');
     const btnBatchShipText = document.getElementById('btnBatchShipText');
 
-    // 搜尋選單 DOM
     const custSearchInput = document.getElementById('custSearchInput');
-    const custListContainer = document.getElementById('custListContainer'); // 修正：這裡一定要有空格
+    constcustListContainer = document.getElementById('custListContainer');
     const custSelectedText = document.getElementById('custSelectedText');
     
     const prodSearchInput = document.getElementById('prodSearchInput');
     const prodListContainer = document.getElementById('prodListContainer');
     const prodSelectedText = document.getElementById('prodSelectedText');
 
-    // Modal
     const batchReceiptModal = new bootstrap.Modal(document.getElementById('batchReceiptModal'));
     const btnConfirmBatchShip = document.getElementById('btnConfirmBatchShip');
     const receiptContainer = document.getElementById('receiptContainer');
     const receiptGrandTotal = document.getElementById('receiptGrandTotal');
     const modalHeader = document.getElementById('modalHeader');
 
-    // 1. 初始化
     async function initData() {
-        // 客戶
+        // Load Customers
         const snapCust = await getDocs(query(collection(db, "customers"), orderBy("joinedAt", "desc")));
         allCustomers = snapCust.docs.map(d => ({id: d.id, ...d.data()}));
-        renderCustList(allCustomers); // 初始化時顯示全部
+        renderCustList(allCustomers);
 
-        // 商品
+        // Load Products
         const snapProd = await getDocs(query(collection(db, "products"), orderBy("createdAt", "desc")));
         allProducts = snapProd.docs.map(d => ({id: d.id, ...d.data()}));
-        renderProdList(allProducts); // 初始化時顯示全部
+        renderProdList(allProducts);
 
-        // 訂單
         await loadOrders();
     }
 
-    // --- 客戶搜尋與選擇邏輯 ---
+    // --- Search Logic ---
     function renderCustList(list) {
         custListContainer.innerHTML = '';
         if(list.length === 0) {
@@ -297,20 +285,14 @@
             div.className = 'dropdown-item-custom';
             const label = c.lineNick ? `${c.name} (${c.lineNick})` : c.name;
             div.innerHTML = `<strong>${c.name}</strong>${c.lineNick ? '<small class="text-primary">'+c.lineNick+'</small>' : ''}`;
-            
-            div.onclick = () => {
-                selectCustomer(c.id, label);
-            };
+            div.onclick = () => selectCustomer(c.id, label);
             custListContainer.appendChild(div);
         });
     }
 
     custSearchInput.addEventListener('input', (e) => {
         const key = e.target.value.toLowerCase();
-        const filtered = allCustomers.filter(c => 
-            c.name.toLowerCase().includes(key) || 
-            (c.lineNick && c.lineNick.toLowerCase().includes(key))
-        );
+        const filtered = allCustomers.filter(c => c.name.toLowerCase().includes(key) || (c.lineNick && c.lineNick.toLowerCase().includes(key)));
         renderCustList(filtered);
     });
 
@@ -318,10 +300,9 @@
         selectedCustId = id;
         custSelectedText.innerText = name;
         custSelectedText.classList.add('fw-bold', 'text-primary');
-        applyFilters(); // 連動右側
+        applyFilters();
     }
 
-    // --- 商品搜尋與選擇邏輯 ---
     function renderProdList(list) {
         prodListContainer.innerHTML = '';
         if(list.length === 0) {
@@ -331,10 +312,10 @@
         list.forEach(p => {
             const div = document.createElement('div');
             div.className = 'dropdown-item-custom';
-            div.innerHTML = `<div>${p.name}</div><small class="text-muted">$${p.price}</small>`;
-            div.onclick = () => {
-                selectProduct(p.id, p.name, p.price);
-            };
+            // 顯示備註提示
+            const noteText = p.note ? `<br><small class="text-danger"><i class="bi bi-info-circle"></i> ${p.note}</small>` : '';
+            div.innerHTML = `<div>${p.name} <span class="badge bg-secondary ms-1">$${p.price}</span></div>${noteText}`;
+            div.onclick = () => selectProduct(p.id, p.name, p.price);
             prodListContainer.appendChild(div);
         });
     }
@@ -350,7 +331,7 @@
         prodSelectedText.innerHTML = `${name} <span class="badge bg-secondary ms-1">$${price}</span>`;
     }
 
-    // --- 訂單列表邏輯 ---
+    // --- Order Logic ---
     btnToggleShowAll.addEventListener('click', () => {
         isShowingAll = !isShowingAll;
         if (isShowingAll) {
@@ -370,7 +351,6 @@
 
     function applyFilters() {
         let filtered = allOrders;
-
         if (selectedCustId) {
             const cust = allCustomers.find(c => c.id === selectedCustId);
             rightPanelTitle.innerText = `${cust.name} 的訂單`;
@@ -380,11 +360,9 @@
             rightPanelTitle.innerText = isShowingAll ? "所有訂單紀錄" : "未出貨訂單";
             rightPanelTitle.classList.remove('text-primary');
         }
-
         if (!isShowingAll) {
             filtered = filtered.filter(o => o.status !== 'shipped');
         }
-
         displayedOrders = filtered;
         renderOrderTable();
     }
@@ -437,7 +415,7 @@
         document.querySelectorAll('.order-check').forEach(chk => chk.addEventListener('change', updateBatchSummary));
     }
 
-    // 購物車邏輯
+    // Cart Logic - Add Note Support
     document.getElementById('btnAddToCart').addEventListener('click', () => {
         if (!selectedProdId) { alert("請先選擇商品"); return; }
         const qty = parseInt(inputQty.value);
@@ -446,8 +424,18 @@
         const product = allProducts.find(p => p.id === selectedProdId);
         const existing = currentCart.find(item => item.id === selectedProdId);
         
-        if (existing) existing.qty += qty;
-        else currentCart.push({ id: product.id, name: product.name, price: product.price, qty: qty });
+        // 加入時把備註帶入
+        if (existing) {
+            existing.qty += qty;
+        } else {
+            currentCart.push({ 
+                id: product.id, 
+                name: product.name, 
+                price: product.price, 
+                qty: qty,
+                note: product.note || '' // 儲存備註
+            });
+        }
         
         renderCart();
         inputQty.value = 1;
@@ -464,7 +452,12 @@
         let total = 0;
         currentCart.forEach((item, index) => {
             total += item.price * item.qty;
-            html += `<div class="cart-item"><div><strong>${item.name}</strong> <small class="text-muted">x${item.qty}</small></div><div>$${item.price * item.qty} <i class="bi bi-x text-danger" style="cursor:pointer" onclick="window.removeCartItem(${index})"></i></div></div>`;
+            // 顯示備註
+            const noteDisplay = item.note ? `<br><small class="text-danger"><i class="bi bi-info-circle"></i> ${item.note}</small>` : '';
+            html += `<div class="cart-item">
+                        <div><strong>${item.name}</strong>${noteDisplay} <small class="text-muted">x${item.qty}</small></div>
+                        <div>$${item.price * item.qty} <i class="bi bi-x text-danger" style="cursor:pointer" onclick="window.removeCartItem(${index})"></i></div>
+                     </div>`;
         });
         cartList.innerHTML = html;
         totalDisplay.innerText = total;
@@ -472,7 +465,6 @@
         window.removeCartItem = (index) => { currentCart.splice(index, 1); renderCart(); };
     }
 
-    // 送出訂單
     submitBtn.addEventListener('click', async () => {
         if (!selectedCustId) { alert("請選擇客戶！"); return; }
         const customer = allCustomers.find(c => c.id === selectedCustId);
@@ -487,12 +479,11 @@
         } catch (error) { console.error("Error:", error); alert("失敗"); } finally { submitBtn.disabled = false; }
     });
 
-    // --- 收據與批次操作 ---
+    // Receipt Logic - Display Note
     function updateBatchSummary() {
         const checkboxes = document.querySelectorAll('.order-check:checked');
         let total = 0, count = 0;
         let hasPending = false;
-        
         checkboxes.forEach(chk => {
             total += parseInt(chk.dataset.amount);
             count++;
@@ -500,11 +491,7 @@
             const order = allOrders.find(o => o.id === chk.value);
             if(order && order.status !== 'shipped') hasPending = true;
         });
-        
-        document.querySelectorAll('.order-check:not(:checked)').forEach(chk => {
-            chk.closest('tr').classList.remove('selected');
-        });
-
+        document.querySelectorAll('.order-check:not(:checked)').forEach(chk => chk.closest('tr').classList.remove('selected'));
         selectedCountEl.innerText = count;
         selectedTotalEl.innerText = total;
         
@@ -539,7 +526,9 @@
             if (order.status !== 'shipped') allShipped = false;
             let itemsHtml = '';
             order.items.forEach(item => {
-                itemsHtml += `<tr><td>${item.name}</td><td class="text-center">$${item.price}</td><td class="text-center">x${item.qty}</td><td class="text-end">$${item.price * item.qty}</td></tr>`;
+                // 收據中顯示備註
+                const noteDisplay = item.note ? `<br><small class="text-danger">(${item.note})</small>` : '';
+                itemsHtml += `<tr><td>${item.name}${noteDisplay}</td><td class="text-center">$${item.price}</td><td class="text-center">x${item.qty}</td><td class="text-end">$${item.price * item.qty}</td></tr>`;
             });
             const statusLabel = order.status === 'shipped' ? '<span class="badge bg-secondary">已出貨</span>' : '<span class="badge bg-warning text-dark">準備出貨</span>';
             html += `

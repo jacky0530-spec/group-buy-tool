@@ -37,12 +37,14 @@
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
         </button>
-<div class="navbar-nav ms-auto">
-    <a class="nav-link" href="products.html"><i class="bi bi-box2 me-1"></i>商品管理</a>
-    <a class="nav-link" href="customers.html"><i class="bi bi-people me-1"></i>客戶管理</a>
-    <a class="nav-link" href="orders.html"><i class="bi bi-cart-check me-1"></i>訂單管理</a>
-    <a class="nav-link" href="reports.html"><i class="bi bi-graph-up me-1"></i>銷售報表</a>
-</div>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link active" href="products.html"><i class="bi bi-box2 me-1"></i>商品管理</a>
+                <a class="nav-link" href="customers.html"><i class="bi bi-people me-1"></i>客戶管理</a>
+                <a class="nav-link" href="orders.html"><i class="bi bi-cart-check me-1"></i>訂單管理</a>
+                <a class="nav-link" href="reports.html"><i class="bi bi-graph-up me-1"></i>銷售報表</a>
+            </div>
+        </div>
     </div>
 </nav>
 
@@ -68,6 +70,10 @@
                             <label class="form-label text-muted small">銷售價</label>
                             <input type="number" class="form-control" id="pPrice" required min="0">
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">商品備註 (選填)</label>
+                            <input type="text" class="form-control" id="pNote" placeholder="例如：需冷凍、易碎品...">
+                        </div>
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-theme" id="submitBtn">新增商品</button>
                             <button type="button" class="btn btn-secondary d-none" id="cancelBtn">取消編輯</button>
@@ -88,6 +94,7 @@
                         <thead class="table-light">
                             <tr>
                                 <th class="ps-4">名稱</th>
+                                <th>備註</th>
                                 <th>批發價</th>
                                 <th>銷售價</th>
                                 <th>毛利</th>
@@ -106,7 +113,6 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, updateDoc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-    // 回復使用外部引用
     import { firebaseConfig } from './firebase-config.js';
 
     const app = initializeApp(firebaseConfig);
@@ -125,6 +131,7 @@
         const name = document.getElementById('pName').value.trim();
         const cost = Number(document.getElementById('pCost').value);
         const price = Number(document.getElementById('pPrice').value);
+        const note = document.getElementById('pNote').value.trim(); // 取得備註
         const editId = document.getElementById('editId').value;
 
         if(!name) return;
@@ -143,20 +150,19 @@
             }
 
             if (isEditing) {
-                // 更新
+                // 更新包含備註
                 await updateDoc(doc(db, "products", editId), {
-                    name, cost, price, updatedAt: new Date()
+                    name, cost, price, note, updatedAt: new Date()
                 });
-                resetForm(); // 重置表單狀態
+                resetForm();
             } else {
-                // 新增
+                // 新增包含備註
                 await addDoc(collection(db, "products"), {
-                    name, cost, price, createdAt: new Date()
+                    name, cost, price, note, createdAt: new Date()
                 });
-                form.reset(); // 只清空欄位
+                form.reset();
             }
             
-            // 成功後直接重讀資料，不跳 Alert
             await loadProducts();
             
         } catch (error) {
@@ -181,9 +187,13 @@
             const profit = item.price - item.cost;
             const profitClass = profit >= 0 ? 'text-success' : 'text-danger';
             
+            // 備註顯示邏輯
+            const noteDisplay = item.note ? `<span class="badge bg-secondary" title="${item.note}"><i class="bi bi-info-circle"></i> ${item.note}</span>` : '<span class="text-muted small">-</span>';
+            
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="ps-4 fw-medium">${item.name}</td>
+                <td>${noteDisplay}</td>
                 <td class="text-secondary">$${item.cost}</td>
                 <td class="fw-bold">$${item.price}</td>
                 <td class="${profitClass}">$${profit}</td>
@@ -206,6 +216,8 @@
         document.getElementById('pName').value = product.name;
         document.getElementById('pCost').value = product.cost;
         document.getElementById('pPrice').value = product.price;
+        document.getElementById('pNote').value = product.note || ''; // 載入備註
+
         isEditing = true;
         formTitle.textContent = "編輯商品";
         submitBtn.textContent = "確認更新";
