@@ -246,7 +246,7 @@
     const btnBatchShipText = document.getElementById('btnBatchShipText');
 
     const custSearchInput = document.getElementById('custSearchInput');
-    constcustListContainer = document.getElementById('custListContainer');
+    const custListContainer = document.getElementById('custListContainer'); // 已修正空白鍵問題
     const custSelectedText = document.getElementById('custSelectedText');
     
     const prodSearchInput = document.getElementById('prodSearchInput');
@@ -312,7 +312,6 @@
         list.forEach(p => {
             const div = document.createElement('div');
             div.className = 'dropdown-item-custom';
-            // 顯示備註提示
             const noteText = p.note ? `<br><small class="text-danger"><i class="bi bi-info-circle"></i> ${p.note}</small>` : '';
             div.innerHTML = `<div>${p.name} <span class="badge bg-secondary ms-1">$${p.price}</span></div>${noteText}`;
             div.onclick = () => selectProduct(p.id, p.name, p.price);
@@ -415,7 +414,7 @@
         document.querySelectorAll('.order-check').forEach(chk => chk.addEventListener('change', updateBatchSummary));
     }
 
-    // Cart Logic - Add Note Support
+    // Cart Logic
     document.getElementById('btnAddToCart').addEventListener('click', () => {
         if (!selectedProdId) { alert("請先選擇商品"); return; }
         const qty = parseInt(inputQty.value);
@@ -424,7 +423,6 @@
         const product = allProducts.find(p => p.id === selectedProdId);
         const existing = currentCart.find(item => item.id === selectedProdId);
         
-        // 加入時把備註帶入
         if (existing) {
             existing.qty += qty;
         } else {
@@ -433,10 +431,9 @@
                 name: product.name, 
                 price: product.price, 
                 qty: qty,
-                note: product.note || '' // 儲存備註
+                note: product.note || ''
             });
         }
-        
         renderCart();
         inputQty.value = 1;
     });
@@ -452,7 +449,6 @@
         let total = 0;
         currentCart.forEach((item, index) => {
             total += item.price * item.qty;
-            // 顯示備註
             const noteDisplay = item.note ? `<br><small class="text-danger"><i class="bi bi-info-circle"></i> ${item.note}</small>` : '';
             html += `<div class="cart-item">
                         <div><strong>${item.name}</strong>${noteDisplay} <small class="text-muted">x${item.qty}</small></div>
@@ -479,7 +475,7 @@
         } catch (error) { console.error("Error:", error); alert("失敗"); } finally { submitBtn.disabled = false; }
     });
 
-    // Receipt Logic - Display Note
+    // Receipt Logic
     function updateBatchSummary() {
         const checkboxes = document.querySelectorAll('.order-check:checked');
         let total = 0, count = 0;
@@ -526,7 +522,6 @@
             if (order.status !== 'shipped') allShipped = false;
             let itemsHtml = '';
             order.items.forEach(item => {
-                // 收據中顯示備註
                 const noteDisplay = item.note ? `<br><small class="text-danger">(${item.note})</small>` : '';
                 itemsHtml += `<tr><td>${item.name}${noteDisplay}</td><td class="text-center">$${item.price}</td><td class="text-center">x${item.qty}</td><td class="text-end">$${item.price * item.qty}</td></tr>`;
             });
