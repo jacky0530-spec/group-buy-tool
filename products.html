@@ -58,22 +58,27 @@
                 <div class="card-body">
                     <form id="productForm">
                         <input type="hidden" id="editId">
+                        
                         <div class="mb-3">
                             <label class="form-label text-muted small">商品名稱</label>
                             <input type="text" class="form-control" id="pName" required placeholder="例如：韓國海苔">
                         </div>
+
                         <div class="mb-3">
-                            <label class="form-label text-muted small">批發價 (成本)</label>
-                            <input type="number" class="form-control" id="pCost" required min="0">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label text-muted small">銷售價</label>
+                            <label class="form-label text-muted small">銷售價 (賣給客人)</label>
                             <input type="number" class="form-control" id="pPrice" required min="0">
                         </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">批發價 (進貨成本)</label>
+                            <input type="number" class="form-control" id="pCost" required min="0">
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label text-muted small">商品備註 (選填)</label>
                             <input type="text" class="form-control" id="pNote" placeholder="例如：需冷凍、易碎品...">
                         </div>
+
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-theme" id="submitBtn">新增商品</button>
                             <button type="button" class="btn btn-secondary d-none" id="cancelBtn">取消編輯</button>
@@ -95,8 +100,7 @@
                             <tr>
                                 <th class="ps-4">名稱</th>
                                 <th>備註</th>
-                                <th>批發價</th>
-                                <th>銷售價</th>
+                                <th>銷售價</th> <th>批發價</th>
                                 <th>毛利</th>
                                 <th class="text-end pe-4">操作</th>
                             </tr>
@@ -131,7 +135,7 @@
         const name = document.getElementById('pName').value.trim();
         const cost = Number(document.getElementById('pCost').value);
         const price = Number(document.getElementById('pPrice').value);
-        const note = document.getElementById('pNote').value.trim(); // 取得備註
+        const note = document.getElementById('pNote').value.trim();
         const editId = document.getElementById('editId').value;
 
         if(!name) return;
@@ -150,13 +154,11 @@
             }
 
             if (isEditing) {
-                // 更新包含備註
                 await updateDoc(doc(db, "products", editId), {
                     name, cost, price, note, updatedAt: new Date()
                 });
                 resetForm();
             } else {
-                // 新增包含備註
                 await addDoc(collection(db, "products"), {
                     name, cost, price, note, createdAt: new Date()
                 });
@@ -187,15 +189,14 @@
             const profit = item.price - item.cost;
             const profitClass = profit >= 0 ? 'text-success' : 'text-danger';
             
-            // 備註顯示邏輯
             const noteDisplay = item.note ? `<span class="badge bg-secondary" title="${item.note}"><i class="bi bi-info-circle"></i> ${item.note}</span>` : '<span class="text-muted small">-</span>';
             
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="ps-4 fw-medium">${item.name}</td>
                 <td>${noteDisplay}</td>
-                <td class="text-secondary">$${item.cost}</td>
                 <td class="fw-bold">$${item.price}</td>
+                <td class="text-secondary">$${item.cost}</td>
                 <td class="${profitClass}">$${profit}</td>
                 <td class="text-end pe-4">
                     <button class="btn btn-sm btn-outline-primary me-1 btn-edit" data-id="${item.id}"><i class="bi bi-pencil"></i></button>
@@ -216,7 +217,7 @@
         document.getElementById('pName').value = product.name;
         document.getElementById('pCost').value = product.cost;
         document.getElementById('pPrice').value = product.price;
-        document.getElementById('pNote').value = product.note || ''; // 載入備註
+        document.getElementById('pNote').value = product.note || '';
 
         isEditing = true;
         formTitle.textContent = "編輯商品";
