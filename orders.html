@@ -51,7 +51,6 @@
         .dropdown-item-custom small { display: block; color: #888; font-size: 0.85rem; margin-top: 2px; }
         .search-box-container { padding: 10px; background-color: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 10; }
 
-        /* 新增：數量按鈕樣式 */
         .qty-btn { width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; }
         .qty-btn:hover { background-color: var(--theme-dark); color: white; }
     </style>
@@ -84,7 +83,7 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label text-muted small">選擇客戶</label>
+                        <label class="form-label text-muted small">選擇客戶 (自動篩選右側)</label>
                         <div class="dropdown">
                             <button class="btn btn-outline-primary w-100 text-start d-flex justify-content-between align-items-center dropdown-toggle" 
                                     type="button" id="custDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
@@ -279,11 +278,10 @@
     const receiptGrandTotal = document.getElementById('receiptGrandTotal');
     const modalHeader = document.getElementById('modalHeader');
 
-    // 新增：快速數量按鈕事件綁定
+    // 數量按鈕事件
     document.querySelectorAll('.qty-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             inputQty.value = btn.dataset.val;
-            // 視覺回饋：稍微閃一下輸入框
             inputQty.classList.add('bg-light');
             setTimeout(() => inputQty.classList.remove('bg-light'), 150);
         });
@@ -328,6 +326,11 @@
         selectedCustId = id;
         custSelectedText.innerText = name;
         custSelectedText.classList.add('fw-bold', 'text-primary');
+        
+        // 點選後自動清空搜尋框 & 重置列表
+        custSearchInput.value = '';
+        renderCustList(allCustomers);
+        
         applyFilters();
     }
 
@@ -356,6 +359,10 @@
     function selectProduct(id, name, price) {
         selectedProdId = id;
         prodSelectedText.innerHTML = `${name} <span class="badge bg-secondary ms-1">$${price}</span>`;
+        
+        // 點選後自動清空搜尋框 & 重置列表
+        prodSearchInput.value = '';
+        renderProdList(allProducts);
     }
 
     // --- Order Logic ---
