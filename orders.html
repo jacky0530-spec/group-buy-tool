@@ -50,28 +50,23 @@
         .dropdown-item-custom small { display: block; color: #888; font-size: 0.85rem; margin-top: 2px; }
         .search-box-container { padding: 10px; background-color: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 10; }
 
-        /* 數量按鈕優化 */
-        .qty-btn { 
-            width: 100%; 
-            height: 45px; /* 加高 */
-            font-size: 1.1rem; /* 字體加大 */
-            font-weight: bold; 
-            border-radius: 8px;
-        }
+        .qty-btn { width: 100%; height: 45px; font-size: 1.1rem; font-weight: bold; border-radius: 8px; }
         .qty-btn:hover { background-color: var(--theme-dark); color: white; }
 
-        /* 編輯模式特效 */
         .editing-mode { border: 2px solid #ffc107; box-shadow: 0 0 15px rgba(255, 193, 7, 0.2); }
         
         /* 緊湊收據表格 */
         .receipt-table th { background-color: #f0f0f0; border-bottom: 2px solid #ddd; }
         .receipt-table td { border-bottom: 1px solid #eee; padding: 10px 8px; vertical-align: middle; }
         
-        /* 客戶分組顏色 (循環使用) */
-        .group-color-0 { background-color: #e3f2fd; color: #0d47a1; font-weight: bold; border-top: 2px solid #90caf9; } /* 藍 */
-        .group-color-1 { background-color: #e8f5e9; color: #1b5e20; font-weight: bold; border-top: 2px solid #a5d6a7; } /* 綠 */
-        .group-color-2 { background-color: #fff3e0; color: #e65100; font-weight: bold; border-top: 2px solid #ffcc80; } /* 橘 */
-        .group-color-3 { background-color: #f3e5f5; color: #4a148c; font-weight: bold; border-top: 2px solid #ce93d8; } /* 紫 */
+        /* 客戶分組顏色 */
+        .group-color-0 { background-color: #e3f2fd; color: #0d47a1; border-top: 2px solid #90caf9; } 
+        .group-color-1 { background-color: #e8f5e9; color: #1b5e20; border-top: 2px solid #a5d6a7; } 
+        .group-color-2 { background-color: #fff3e0; color: #e65100; border-top: 2px solid #ffcc80; } 
+        .group-color-3 { background-color: #f3e5f5; color: #4a148c; border-top: 2px solid #ce93d8; }
+
+        /* 客戶小計列樣式 */
+        .cust-total-row { background-color: #fff; border-top: 2px dashed #999; }
     </style>
 </head>
 <body>
@@ -581,7 +576,7 @@
         } catch (error) { console.error("Error:", error); alert("操作失敗"); } finally { submitBtn.disabled = false; }
     });
 
-    // --- Receipt Logic (Merge + Color Grouping) ---
+    // --- Receipt Logic (Updated) ---
     function updateBatchSummary() {
         const checkboxes = document.querySelectorAll('.order-check:checked');
         let total = 0, count = 0;
@@ -596,7 +591,6 @@
         document.querySelectorAll('.order-check:not(:checked)').forEach(chk => chk.closest('tr').classList.remove('selected'));
         selectedCountEl.innerText = count;
         selectedTotalEl.innerText = total;
-        
         if (count > 0) {
             btnTopBatchDelete.classList.remove('d-none');
             btnBatchShip.disabled = false;
@@ -625,32 +619,54 @@
         let html = `<table class="table receipt-table w-100 mb-0"><thead><tr><th width="45%">品項 / 備註</th><th width="20%" class="text-center">單價</th><th width="15%" class="text-center">數量</th><th width="20%" class="text-end">小計</th></tr></thead><tbody>`;
         let grandTotal = 0;
         let allShipped = true;
+        
         let lastCustId = null;
+        let lastCustName = '';
+        let customerSubtotal = 0;
         let colorIndex = 0;
         const colors = ['group-color-0', 'group-color-1', 'group-color-2', 'group-color-3'];
 
-        orderList.forEach(order => {
+        orderList.forEach((order, index) => {
             grandTotal += order.totalAmount;
             if (order.status !== 'shipped') allShipped = false;
             
-            // 判斷是否為同一位客戶
+            // 換人時，先結算上一位
             if (order.customerId !== lastCustId) {
-                // 如果不是第一位，換下一個顏色
+                if (lastCustId !== null) {
+                    html += `<tr><td colspan="4" class="text-end fw-bold cust-total-row p-2">${lastCustName} 合計: <span class="fs-5 text-dark">$${customerSubtotal}</span></td></tr>`;
+                    customerSubtotal = 0; // 重置小計
+                }
+
+                // 顯示新客戶標題 (醒目化)
                 if (lastCustId !== null) colorIndex = (colorIndex + 1) % colors.length;
-                
-                const dateStr = order.orderDate.toDate().toLocaleDateString();
                 const statusLabel = order.status === 'shipped' ? '(已出貨)' : '';
                 
-                html += `<tr class="${colors[colorIndex]}"><td colspan="4"><i class="bi bi-person-fill"></i> ${order.customerName} <small class="ms-2 fw-normal">${dateStr} ${statusLabel}</small></td></tr>`;
+                html += `<tr class="${colors[colorIndex]}">
+                            <td colspan="4" class="py-2">
+                                <i class="bi bi-person-fill fs-5"></i> 
+                                <span class="fs-4 fw-bolder mx-2">${order.customerName}</span>
+                                <small class="fw-normal text-secondary">${statusLabel}</small>
+                            </td>
+                         </tr>`;
                 
                 lastCustId = order.customerId;
+                lastCustName = order.customerName;
             }
 
+            // 累加小計
+            customerSubtotal += order.totalAmount;
+
+            // 顯示商品
             order.items.forEach(item => {
                 const noteDisplay = item.note ? `<br><small class="text-danger">(${item.note})</small>` : '';
                 html += `<tr><td>${item.name}${noteDisplay}</td><td class="text-center">$${item.price}</td><td class="text-center">x${item.qty}</td><td class="text-end">$${item.price * item.qty}</td></tr>`;
             });
         });
+
+        // 迴圈結束後，補上最後一位客戶的小計
+        if (lastCustId !== null) {
+            html += `<tr><td colspan="4" class="text-end fw-bold cust-total-row p-2">${lastCustName} 合計: <span class="fs-5 text-dark">$${customerSubtotal}</span></td></tr>`;
+        }
         
         html += `</tbody></table>`;
         receiptContainer.innerHTML = html;
