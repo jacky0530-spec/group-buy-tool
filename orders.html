@@ -50,7 +50,14 @@
         .dropdown-item-custom small { display: block; color: #888; font-size: 0.85rem; margin-top: 2px; }
         .search-box-container { padding: 10px; background-color: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 10; }
 
-        .qty-btn { width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        /* 數量按鈕優化 */
+        .qty-btn { 
+            width: 100%; 
+            height: 45px; /* 加高 */
+            font-size: 1.1rem; /* 字體加大 */
+            font-weight: bold; 
+            border-radius: 8px;
+        }
         .qty-btn:hover { background-color: var(--theme-dark); color: white; }
 
         /* 編輯模式特效 */
@@ -58,8 +65,13 @@
         
         /* 緊湊收據表格 */
         .receipt-table th { background-color: #f0f0f0; border-bottom: 2px solid #ddd; }
-        .receipt-table td { border-bottom: 1px solid #eee; padding: 8px; vertical-align: middle; }
-        .receipt-group-header { background-color: #e3f2fd; color: #0d47a1; font-weight: bold; }
+        .receipt-table td { border-bottom: 1px solid #eee; padding: 10px 8px; vertical-align: middle; }
+        
+        /* 客戶分組顏色 (循環使用) */
+        .group-color-0 { background-color: #e3f2fd; color: #0d47a1; font-weight: bold; border-top: 2px solid #90caf9; } /* 藍 */
+        .group-color-1 { background-color: #e8f5e9; color: #1b5e20; font-weight: bold; border-top: 2px solid #a5d6a7; } /* 綠 */
+        .group-color-2 { background-color: #fff3e0; color: #e65100; font-weight: bold; border-top: 2px solid #ffcc80; } /* 橘 */
+        .group-color-3 { background-color: #f3e5f5; color: #4a148c; font-weight: bold; border-top: 2px solid #ce93d8; } /* 紫 */
     </style>
 </head>
 <body>
@@ -126,24 +138,31 @@
                             </div>
                         </div>
 
-                        <div class="mb-2">
-                            <label class="form-label text-muted small">數量</label>
-                            <div class="d-flex flex-wrap gap-1 mb-2">
-                                <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="1">1</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="2">2</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="3">3</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="4">4</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="5">5</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="10">10</button>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">快速數量</label>
+                            <div class="row row-cols-5 g-2 mb-2">
+                                <div class="col"><button type="button" class="btn btn-outline-secondary qty-btn" data-val="1">1</button></div>
+                                <div class="col"><button type="button" class="btn btn-outline-secondary qty-btn" data-val="2">2</button></div>
+                                <div class="col"><button type="button" class="btn btn-outline-secondary qty-btn" data-val="3">3</button></div>
+                                <div class="col"><button type="button" class="btn btn-outline-secondary qty-btn" data-val="4">4</button></div>
+                                <div class="col"><button type="button" class="btn btn-outline-secondary qty-btn" data-val="5">5</button></div>
+                            </div>
+                            <div class="row row-cols-5 g-2">
+                                <div class="col"><button type="button" class="btn btn-outline-secondary qty-btn" data-val="6">6</button></div>
+                                <div class="col"><button type="button" class="btn btn-outline-secondary qty-btn" data-val="7">7</button></div>
+                                <div class="col"><button type="button" class="btn btn-outline-secondary qty-btn" data-val="8">8</button></div>
+                                <div class="col"><button type="button" class="btn btn-outline-secondary qty-btn" data-val="9">9</button></div>
+                                <div class="col"><button type="button" class="btn btn-outline-secondary qty-btn" data-val="10">10</button></div>
                             </div>
                         </div>
 
-                        <div class="row g-2">
+                        <div class="row g-2 align-items-end">
                             <div class="col-5">
-                                <input type="number" id="inputQty" class="form-control text-center fw-bold" value="1" min="1" placeholder="自訂">
+                                <label class="form-label text-muted small">手動輸入</label>
+                                <input type="number" id="inputQty" class="form-control text-center fw-bold" value="1" min="1" placeholder="數量">
                             </div>
-                            <div class="col-7 d-flex align-items-end">
-                                <button type="button" id="btnAddToCart" class="btn btn-outline-secondary w-100">
+                            <div class="col-7">
+                                <button type="button" id="btnAddToCart" class="btn btn-outline-secondary w-100" style="height: 38px;">
                                     <i class="bi bi-plus-lg"></i> 加入清單
                                 </button>
                             </div>
@@ -282,7 +301,7 @@
 
     // Search Dropdown DOM
     const custSearchInput = document.getElementById('custSearchInput');
-    const custListContainer = document.getElementById('custListContainer'); // 修正：確保這裡有空格
+    const custListContainer = document.getElementById('custListContainer'); 
     const custSelectedText = document.getElementById('custSelectedText');
     const prodSearchInput = document.getElementById('prodSearchInput');
     const prodListContainer = document.getElementById('prodListContainer');
@@ -294,7 +313,7 @@
     const receiptGrandTotal = document.getElementById('receiptGrandTotal');
     const modalHeader = document.getElementById('modalHeader');
 
-    // Qty Buttons
+    // Qty Buttons Event
     document.querySelectorAll('.qty-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             inputQty.value = btn.dataset.val;
@@ -562,7 +581,7 @@
         } catch (error) { console.error("Error:", error); alert("操作失敗"); } finally { submitBtn.disabled = false; }
     });
 
-    // --- Receipt ---
+    // --- Receipt Logic (Merge + Color Grouping) ---
     function updateBatchSummary() {
         const checkboxes = document.querySelectorAll('.order-check:checked');
         let total = 0, count = 0;
@@ -577,6 +596,7 @@
         document.querySelectorAll('.order-check:not(:checked)').forEach(chk => chk.closest('tr').classList.remove('selected'));
         selectedCountEl.innerText = count;
         selectedTotalEl.innerText = total;
+        
         if (count > 0) {
             btnTopBatchDelete.classList.remove('d-none');
             btnBatchShip.disabled = false;
@@ -599,24 +619,43 @@
     });
 
     function generateReceiptHtml(orderList) {
+        // 先依照客戶名稱排序
+        orderList.sort((a, b) => a.customerName.localeCompare(b.customerName));
+
         let html = `<table class="table receipt-table w-100 mb-0"><thead><tr><th width="45%">品項 / 備註</th><th width="20%" class="text-center">單價</th><th width="15%" class="text-center">數量</th><th width="20%" class="text-end">小計</th></tr></thead><tbody>`;
         let grandTotal = 0;
         let allShipped = true;
+        let lastCustId = null;
+        let colorIndex = 0;
+        const colors = ['group-color-0', 'group-color-1', 'group-color-2', 'group-color-3'];
 
         orderList.forEach(order => {
             grandTotal += order.totalAmount;
             if (order.status !== 'shipped') allShipped = false;
-            const dateStr = order.orderDate.toDate().toLocaleDateString();
-            const statusLabel = order.status === 'shipped' ? '(已出貨)' : '';
-            html += `<tr class="receipt-group-header"><td colspan="4"><i class="bi bi-person-fill"></i> ${order.customerName} <small class="ms-2 fw-normal">${dateStr} ${statusLabel}</small></td></tr>`;
+            
+            // 判斷是否為同一位客戶
+            if (order.customerId !== lastCustId) {
+                // 如果不是第一位，換下一個顏色
+                if (lastCustId !== null) colorIndex = (colorIndex + 1) % colors.length;
+                
+                const dateStr = order.orderDate.toDate().toLocaleDateString();
+                const statusLabel = order.status === 'shipped' ? '(已出貨)' : '';
+                
+                html += `<tr class="${colors[colorIndex]}"><td colspan="4"><i class="bi bi-person-fill"></i> ${order.customerName} <small class="ms-2 fw-normal">${dateStr} ${statusLabel}</small></td></tr>`;
+                
+                lastCustId = order.customerId;
+            }
+
             order.items.forEach(item => {
                 const noteDisplay = item.note ? `<br><small class="text-danger">(${item.note})</small>` : '';
                 html += `<tr><td>${item.name}${noteDisplay}</td><td class="text-center">$${item.price}</td><td class="text-center">x${item.qty}</td><td class="text-end">$${item.price * item.qty}</td></tr>`;
             });
         });
+        
         html += `</tbody></table>`;
         receiptContainer.innerHTML = html;
         receiptGrandTotal.innerText = `$${grandTotal}`;
+        
         if (allShipped) {
             btnConfirmBatchShip.classList.add('d-none');
             modalHeader.classList.replace('bg-success', 'bg-secondary');
