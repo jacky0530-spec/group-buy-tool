@@ -25,6 +25,7 @@
             font-weight: bold;
             border-bottom: 2px solid var(--theme-color);
         }
+        
         .btn-theme { background-color: var(--theme-color); color: white; border: none; }
         .btn-theme:hover { background-color: var(--theme-dark); color: white; }
         
@@ -42,9 +43,7 @@
             padding: 15px; position: sticky; bottom: 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 100;
         }
 
-        .receipt-card { border: 1px solid #eee; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        .receipt-header { background-color: #f8f9fa; padding: 8px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-
+        /* 搜尋選單樣式 */
         .dropdown-menu-scroll { max-height: 300px; overflow-y: auto; }
         .dropdown-item-custom { cursor: pointer; padding: 10px 15px; border-bottom: 1px solid #f1f1f1; transition: background 0.2s; }
         .dropdown-item-custom:hover { background-color: var(--theme-light); color: var(--theme-dark); }
@@ -53,6 +52,14 @@
 
         .qty-btn { width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; }
         .qty-btn:hover { background-color: var(--theme-dark); color: white; }
+
+        /* 編輯模式邊框特效 */
+        .editing-mode { border: 2px solid #ffc107; box-shadow: 0 0 15px rgba(255, 193, 7, 0.2); }
+        
+        /* 緊湊收據表格 */
+        .receipt-table th { background-color: #f0f0f0; border-bottom: 2px solid #ddd; }
+        .receipt-table td { border-bottom: 1px solid #eee; padding: 8px; vertical-align: middle; }
+        .receipt-group-header { background-color: #e3f2fd; color: #0d47a1; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -77,12 +84,13 @@
 <div class="container-fluid px-4">
     <div class="row">
         <div class="col-lg-4 mb-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-header card-header-custom">
-                    <i class="bi bi-cart-plus me-2"></i>開立新訂單
+            <div class="card shadow-sm h-100" id="orderFormCard">
+                <div class="card-header card-header-custom d-flex justify-content-between align-items-center">
+                    <span id="formTitle"><i class="bi bi-cart-plus me-2"></i>開立新訂單</span>
+                    <button class="btn btn-sm btn-outline-secondary d-none" id="btnCancelEdit">取消編輯</button>
                 </div>
                 <div class="card-body">
-                    <div class="mb-3">
+                    <input type="hidden" id="editOrderId"> <div class="mb-3">
                         <label class="form-label text-muted small">選擇客戶 (自動篩選右側)</label>
                         <div class="dropdown">
                             <button class="btn btn-outline-primary w-100 text-start d-flex justify-content-between align-items-center dropdown-toggle" 
@@ -98,6 +106,7 @@
                         </div>
                     </div>
                     <hr>
+                    
                     <div class="bg-light p-3 rounded mb-3">
                         <div class="mb-2">
                             <label class="form-label text-muted small">選擇商品</label>
@@ -116,17 +125,13 @@
                         </div>
 
                         <div class="mb-2">
-                            <label class="form-label text-muted small">數量 (點選或手動輸入)</label>
+                            <label class="form-label text-muted small">數量</label>
                             <div class="d-flex flex-wrap gap-1 mb-2">
                                 <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="1">1</button>
                                 <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="2">2</button>
                                 <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="3">3</button>
                                 <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="4">4</button>
                                 <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="5">5</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="6">6</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="7">7</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="8">8</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="9">9</button>
                                 <button type="button" class="btn btn-outline-secondary btn-sm qty-btn" data-val="10">10</button>
                             </div>
                         </div>
@@ -142,7 +147,8 @@
                             </div>
                         </div>
                     </div>
-                    <h6 class="text-muted small mt-4"><i class="bi bi-basket me-1"></i>本次購買內容</h6>
+
+                    <h6 class="text-muted small mt-4"><i class="bi bi-basket me-1"></i>訂單內容</h6>
                     <div id="cartList" class="mb-3" style="min-height: 100px;">
                         <div class="text-center text-muted py-4 small">尚未加入商品</div>
                     </div>
@@ -183,7 +189,7 @@
                                 <th>客戶</th>
                                 <th>內容摘要</th>
                                 <th>金額</th>
-                                <th class="text-end pe-3">操作</th>
+                                <th class="text-end pe-3" style="width: 140px;">操作</th>
                             </tr>
                         </thead>
                         <tbody id="orderTableBody">
@@ -215,11 +221,12 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header bg-success text-white" id="modalHeader">
-                <h5 class="modal-title"><i class="bi bi-receipt-cutoff me-2"></i>訂單收據明細</h5>
+                <h5 class="modal-title"><i class="bi bi-receipt-cutoff me-2"></i>出貨單明細</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body bg-light">
-                <div id="receiptContainer" class="p-2"></div>
+                <div id="receiptContainer" class="p-2">
+                    </div>
                 <div class="text-end mt-4 pt-3 border-top border-2">
                     <h4 class="fw-bold">總合計: <span class="text-danger" id="receiptGrandTotal">$0</span></h4>
                 </div>
@@ -246,13 +253,21 @@
     let isShowingAll = false;
     let selectedCustId = null;
     let selectedProdId = null;
+    let isEditing = false; // 編輯模式旗標
 
-    // DOM
+    // DOM 元素
     const inputQty = document.getElementById('inputQty');
     const cartList = document.getElementById('cartList');
     const totalDisplay = document.getElementById('cartTotalDisplay');
     const submitBtn = document.getElementById('btnSubmitOrder');
     
+    // 編輯模式 DOM
+    const orderFormCard = document.getElementById('orderFormCard');
+    const formTitle = document.getElementById('formTitle');
+    const btnCancelEdit = document.getElementById('btnCancelEdit');
+    const editOrderId = document.getElementById('editOrderId');
+
+    // 列表與面板 DOM
     const rightPanelTitle = document.getElementById('rightPanelTitle');
     const btnToggleShowAll = document.getElementById('btnToggleShowAll');
     const tableBody = document.getElementById('orderTableBody');
@@ -264,14 +279,15 @@
     const btnBatchShip = document.getElementById('btnBatchShip');
     const btnBatchShipText = document.getElementById('btnBatchShipText');
 
+    // 下拉搜尋 DOM
     const custSearchInput = document.getElementById('custSearchInput');
-    const custListContainer = document.getElementById('custListContainer');
+    constcustListContainer = document.getElementById('custListContainer');
     const custSelectedText = document.getElementById('custSelectedText');
-    
     const prodSearchInput = document.getElementById('prodSearchInput');
     const prodListContainer = document.getElementById('prodListContainer');
     const prodSelectedText = document.getElementById('prodSelectedText');
 
+    // Modal
     const batchReceiptModal = new bootstrap.Modal(document.getElementById('batchReceiptModal'));
     const btnConfirmBatchShip = document.getElementById('btnConfirmBatchShip');
     const receiptContainer = document.getElementById('receiptContainer');
@@ -326,11 +342,8 @@
         selectedCustId = id;
         custSelectedText.innerText = name;
         custSelectedText.classList.add('fw-bold', 'text-primary');
-        
-        // 點選後自動清空搜尋框 & 重置列表
         custSearchInput.value = '';
         renderCustList(allCustomers);
-        
         applyFilters();
     }
 
@@ -359,13 +372,11 @@
     function selectProduct(id, name, price) {
         selectedProdId = id;
         prodSelectedText.innerHTML = `${name} <span class="badge bg-secondary ms-1">$${price}</span>`;
-        
-        // 點選後自動清空搜尋框 & 重置列表
         prodSearchInput.value = '';
         renderProdList(allProducts);
     }
 
-    // --- Order Logic ---
+    // --- Order List & Filter Logic ---
     btnToggleShowAll.addEventListener('click', () => {
         isShowingAll = !isShowingAll;
         if (isShowingAll) {
@@ -385,7 +396,7 @@
 
     function applyFilters() {
         let filtered = allOrders;
-        if (selectedCustId) {
+        if (selectedCustId && !isEditing) { // 編輯模式下，右側不過濾，避免混亂
             const cust = allCustomers.find(c => c.id === selectedCustId);
             rightPanelTitle.innerText = `${cust.name} 的訂單`;
             rightPanelTitle.classList.add('text-primary');
@@ -425,7 +436,9 @@
                 : '<span class="status-badge status-pending">未出貨</span>';
             const rowClass = isShipped ? 'row-shipped' : '';
 
+            // 增加編輯按鈕 (黃色鉛筆)
             const actionBtns = `
+                <button class="btn btn-sm btn-outline-warning me-1 btn-edit" data-id="${order.id}" title="編輯訂單"><i class="bi bi-pencil-fill"></i></button>
                 <button class="btn btn-sm btn-outline-primary btn-receipt me-1" data-id="${order.id}" title="查看收據"><i class="bi bi-receipt"></i></button>
                 <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${order.id}" title="刪除"><i class="bi bi-trash"></i></button>
             `;
@@ -446,10 +459,71 @@
 
         document.querySelectorAll('.btn-delete').forEach(btn => btn.addEventListener('click', () => deleteSingleOrder(btn.dataset.id)));
         document.querySelectorAll('.btn-receipt').forEach(btn => btn.addEventListener('click', () => openSingleReceipt(btn.dataset.id)));
+        document.querySelectorAll('.btn-edit').forEach(btn => btn.addEventListener('click', () => startEditOrder(btn.dataset.id)));
         document.querySelectorAll('.order-check').forEach(chk => chk.addEventListener('change', updateBatchSummary));
     }
 
-    // Cart Logic
+    // --- Edit Order Logic ---
+    function startEditOrder(id) {
+        const order = allOrders.find(o => o.id === id);
+        if(!order) return;
+
+        isEditing = true;
+        editOrderId.value = id;
+        
+        // 進入編輯模式的 UI 變化
+        orderFormCard.classList.add('editing-mode');
+        formTitle.innerHTML = `<i class="bi bi-pencil-square me-2"></i>正在編輯訂單`;
+        formTitle.classList.add('text-warning');
+        submitBtn.innerText = "更新訂單";
+        submitBtn.classList.replace('btn-theme', 'btn-warning');
+        btnCancelEdit.classList.remove('d-none');
+
+        // 載入客戶
+        const cust = allCustomers.find(c => c.id === order.customerId);
+        if(cust) {
+            selectCustomer(cust.id, cust.lineNick ? `${cust.name} (${cust.lineNick})` : cust.name);
+        } else {
+            // 客戶可能被刪除，顯示備份名字
+            selectedCustId = order.customerId; 
+            custSelectedText.innerText = order.customerName + " (已刪除)";
+        }
+
+        // 載入購物車
+        currentCart = JSON.parse(JSON.stringify(order.items)); // Deep copy
+        renderCart();
+        
+        // 捲動到頂部
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    btnCancelEdit.addEventListener('click', resetOrderForm);
+
+    function resetOrderForm() {
+        isEditing = false;
+        editOrderId.value = '';
+        currentCart = [];
+        renderCart();
+        
+        // 恢復 UI
+        orderFormCard.classList.remove('editing-mode');
+        formTitle.innerHTML = `<i class="bi bi-cart-plus me-2"></i>開立新訂單`;
+        formTitle.classList.remove('text-warning');
+        submitBtn.innerText = "確認下單";
+        submitBtn.classList.replace('btn-warning', 'btn-theme');
+        btnCancelEdit.classList.add('d-none');
+        
+        // 重置選單
+        selectedCustId = null;
+        custSelectedText.innerText = "請選擇或搜尋客戶...";
+        custSelectedText.classList.remove('fw-bold', 'text-primary');
+        selectedProdId = null;
+        prodSelectedText.innerText = "請選擇或搜尋商品...";
+        
+        applyFilters(); // 恢復右側過濾
+    }
+
+    // --- Cart & Submit/Update Logic ---
     document.getElementById('btnAddToCart').addEventListener('click', () => {
         if (!selectedProdId) { alert("請先選擇商品"); return; }
         const qty = parseInt(inputQty.value);
@@ -500,17 +574,44 @@
         if (!selectedCustId) { alert("請選擇客戶！"); return; }
         const customer = allCustomers.find(c => c.id === selectedCustId);
         const total = parseInt(totalDisplay.innerText);
+        const customerName = customer ? customer.name : custSelectedText.innerText; // Fallback
 
         submitBtn.disabled = true;
         try {
-            await addDoc(collection(db, "orders"), {
-                customerId: customer.id, customerName: customer.name, items: currentCart, totalAmount: total, orderDate: new Date(), status: 'pending'
-            });
-            currentCart = []; renderCart(); await loadOrders();
-        } catch (error) { console.error("Error:", error); alert("失敗"); } finally { submitBtn.disabled = false; }
+            if (isEditing) {
+                // 更新模式
+                const orderId = editOrderId.value;
+                await updateDoc(doc(db, "orders", orderId), {
+                    customerId: selectedCustId,
+                    customerName: customerName,
+                    items: currentCart,
+                    totalAmount: total
+                    // 不更新 orderDate 和 status
+                });
+                alert("訂單更新成功！");
+                resetOrderForm();
+            } else {
+                // 新增模式
+                await addDoc(collection(db, "orders"), {
+                    customerId: selectedCustId,
+                    customerName: customerName,
+                    items: currentCart,
+                    totalAmount: total,
+                    orderDate: new Date(),
+                    status: 'pending'
+                });
+                currentCart = []; renderCart(); 
+                // 為了方便連續開單，這裡不完全重置客戶
+            }
+            await loadOrders();
+        } catch (error) { 
+            console.error("Error:", error); alert("操作失敗"); 
+        } finally { 
+            submitBtn.disabled = false; 
+        }
     });
 
-    // Receipt Logic
+    // --- Receipt Logic (Merge Tables) ---
     function updateBatchSummary() {
         const checkboxes = document.querySelectorAll('.order-check:checked');
         let total = 0, count = 0;
@@ -548,35 +649,48 @@
     });
 
     function generateReceiptHtml(orderList) {
-        let html = '';
+        let html = `<table class="table receipt-table w-100 mb-0">
+                        <thead>
+                            <tr>
+                                <th width="45%">品項 / 備註</th>
+                                <th width="20%" class="text-center">單價</th>
+                                <th width="15%" class="text-center">數量</th>
+                                <th width="20%" class="text-end">小計</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
         let grandTotal = 0;
         let allShipped = true;
 
         orderList.forEach(order => {
             grandTotal += order.totalAmount;
             if (order.status !== 'shipped') allShipped = false;
-            let itemsHtml = '';
+            
+            // 標題行：顯示客戶姓名 (作為分隔)
+            const dateStr = order.orderDate.toDate().toLocaleDateString();
+            const statusLabel = order.status === 'shipped' ? '(已出貨)' : '';
+            html += `<tr class="receipt-group-header">
+                        <td colspan="4">
+                            <i class="bi bi-person-fill"></i> ${order.customerName} 
+                            <small class="ms-2 fw-normal">${dateStr} ${statusLabel}</small>
+                        </td>
+                     </tr>`;
+
+            // 商品行
             order.items.forEach(item => {
                 const noteDisplay = item.note ? `<br><small class="text-danger">(${item.note})</small>` : '';
-                itemsHtml += `<tr><td>${item.name}${noteDisplay}</td><td class="text-center">$${item.price}</td><td class="text-center">x${item.qty}</td><td class="text-end">$${item.price * item.qty}</td></tr>`;
+                html += `<tr>
+                            <td>${item.name}${noteDisplay}</td>
+                            <td class="text-center">$${item.price}</td>
+                            <td class="text-center">x${item.qty}</td>
+                            <td class="text-end">$${item.price * item.qty}</td>
+                         </tr>`;
             });
-            const statusLabel = order.status === 'shipped' ? '<span class="badge bg-secondary">已出貨</span>' : '<span class="badge bg-warning text-dark">準備出貨</span>';
-            html += `
-                <div class="card mb-3 receipt-card">
-                    <div class="receipt-header">
-                        <div><strong><i class="bi bi-person-circle me-1"></i>${order.customerName}</strong></div>
-                        <div>${statusLabel} <small class="text-muted ms-2">${order.orderDate.toDate().toLocaleDateString()}</small></div>
-                    </div>
-                    <div class="card-body p-2">
-                        <table class="table table-sm table-borderless mb-0">
-                            <thead class="text-muted small border-bottom"><tr><th width="40%">品項</th><th width="20%" class="text-center">單價</th><th width="15%" class="text-center">數量</th><th width="25%" class="text-end">金額</th></tr></thead>
-                            <tbody>${itemsHtml}</tbody>
-                            <tfoot class="border-top"><tr><td colspan="3" class="text-end text-muted small pt-2">小計</td><td class="text-end fw-bold pt-2">$${order.totalAmount}</td></tr></tfoot>
-                        </table>
-                    </div>
-                </div>
-            `;
+            // 該訂單小計 (可選)
+            // html += `<tr><td colspan="4" class="text-end text-muted small bg-light">小計 $${order.totalAmount}</td></tr>`;
         });
+
+        html += `</tbody></table>`;
         receiptContainer.innerHTML = html;
         receiptGrandTotal.innerText = `$${grandTotal}`;
         
@@ -601,6 +715,7 @@
         const checkboxes = document.querySelectorAll('.order-check:checked');
         if(checkboxes.length === 0) return;
         const selectedIds = Array.from(checkboxes).map(c => c.value);
+        // 依照原始列表順序排列 (避免跳號)
         const selectedOrders = allOrders.filter(o => selectedIds.includes(o.id));
         generateReceiptHtml(selectedOrders);
         batchReceiptModal.show();
