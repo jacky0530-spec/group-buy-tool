@@ -43,7 +43,6 @@
             padding: 15px; position: sticky; bottom: 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 100;
         }
 
-        /* 搜尋選單樣式 */
         .dropdown-menu-scroll { max-height: 300px; overflow-y: auto; }
         .dropdown-item-custom { cursor: pointer; padding: 10px 15px; border-bottom: 1px solid #f1f1f1; transition: background 0.2s; }
         .dropdown-item-custom:hover { background-color: var(--theme-light); color: var(--theme-dark); }
@@ -55,17 +54,14 @@
 
         .editing-mode { border: 2px solid #ffc107; box-shadow: 0 0 15px rgba(255, 193, 7, 0.2); }
         
-        /* 緊湊收據表格 */
         .receipt-table th { background-color: #f0f0f0; border-bottom: 2px solid #ddd; }
         .receipt-table td { border-bottom: 1px solid #eee; padding: 10px 8px; vertical-align: middle; }
         
-        /* 客戶分組顏色 */
         .group-color-0 { background-color: #e3f2fd; color: #0d47a1; border-top: 2px solid #90caf9; } 
         .group-color-1 { background-color: #e8f5e9; color: #1b5e20; border-top: 2px solid #a5d6a7; } 
         .group-color-2 { background-color: #fff3e0; color: #e65100; border-top: 2px solid #ffcc80; } 
         .group-color-3 { background-color: #f3e5f5; color: #4a148c; border-top: 2px solid #ce93d8; }
 
-        /* 客戶小計列樣式 */
         .cust-total-row { background-color: #fff; border-top: 2px dashed #999; }
     </style>
 </head>
@@ -270,19 +266,16 @@
     let selectedProdId = null;
     let isEditing = false;
 
-    // DOM
     const inputQty = document.getElementById('inputQty');
     const cartList = document.getElementById('cartList');
     const totalDisplay = document.getElementById('cartTotalDisplay');
     const submitBtn = document.getElementById('btnSubmitOrder');
     
-    // Edit DOM
     const orderFormCard = document.getElementById('orderFormCard');
     const formTitle = document.getElementById('formTitle');
     const btnCancelEdit = document.getElementById('btnCancelEdit');
     const editOrderId = document.getElementById('editOrderId');
 
-    // List DOM
     const rightPanelTitle = document.getElementById('rightPanelTitle');
     const btnToggleShowAll = document.getElementById('btnToggleShowAll');
     const tableBody = document.getElementById('orderTableBody');
@@ -294,7 +287,6 @@
     const btnBatchShip = document.getElementById('btnBatchShip');
     const btnBatchShipText = document.getElementById('btnBatchShipText');
 
-    // Search Dropdown DOM
     const custSearchInput = document.getElementById('custSearchInput');
     const custListContainer = document.getElementById('custListContainer'); 
     const custSelectedText = document.getElementById('custSelectedText');
@@ -308,7 +300,6 @@
     const receiptGrandTotal = document.getElementById('receiptGrandTotal');
     const modalHeader = document.getElementById('modalHeader');
 
-    // Qty Buttons Event
     document.querySelectorAll('.qty-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             inputQty.value = btn.dataset.val;
@@ -329,7 +320,6 @@
         await loadOrders();
     }
 
-    // --- Search Logic ---
     function renderCustList(list) {
         custListContainer.innerHTML = '';
         if(list.length === 0) {
@@ -390,7 +380,6 @@
         renderProdList(allProducts);
     }
 
-    // --- Order Logic ---
     btnToggleShowAll.addEventListener('click', () => {
         isShowingAll = !isShowingAll;
         if (isShowingAll) {
@@ -519,7 +508,6 @@
         applyFilters();
     }
 
-    // --- Cart & Submit ---
     document.getElementById('btnAddToCart').addEventListener('click', () => {
         if (!selectedProdId) { alert("請先選擇商品"); return; }
         const qty = parseInt(inputQty.value);
@@ -576,7 +564,6 @@
         } catch (error) { console.error("Error:", error); alert("操作失敗"); } finally { submitBtn.disabled = false; }
     });
 
-    // --- Receipt Logic (Updated) ---
     function updateBatchSummary() {
         const checkboxes = document.querySelectorAll('.order-check:checked');
         let total = 0, count = 0;
@@ -591,6 +578,7 @@
         document.querySelectorAll('.order-check:not(:checked)').forEach(chk => chk.closest('tr').classList.remove('selected'));
         selectedCountEl.innerText = count;
         selectedTotalEl.innerText = total;
+        
         if (count > 0) {
             btnTopBatchDelete.classList.remove('d-none');
             btnBatchShip.disabled = false;
@@ -612,11 +600,22 @@
         updateBatchSummary();
     });
 
+    // --- 收據產生 (新增排序號碼 #) ---
     function generateReceiptHtml(orderList) {
-        // 先依照客戶名稱排序
         orderList.sort((a, b) => a.customerName.localeCompare(b.customerName));
 
-        let html = `<table class="table receipt-table w-100 mb-0"><thead><tr><th width="45%">品項 / 備註</th><th width="20%" class="text-center">單價</th><th width="15%" class="text-center">數量</th><th width="20%" class="text-end">小計</th></tr></thead><tbody>`;
+        let html = `<table class="table receipt-table w-100 mb-0">
+                        <thead>
+                            <tr>
+                                <th width="10%" class="text-center">#</th>
+                                <th width="40%">品項 / 備註</th>
+                                <th width="15%" class="text-center">單價</th>
+                                <th width="15%" class="text-center">數量</th>
+                                <th width="20%" class="text-end">小計</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+        
         let grandTotal = 0;
         let allShipped = true;
         
@@ -625,24 +624,24 @@
         let customerSubtotal = 0;
         let colorIndex = 0;
         const colors = ['group-color-0', 'group-color-1', 'group-color-2', 'group-color-3'];
+        let itemIndex = 1; // 新增：項次計數器
 
-        orderList.forEach((order, index) => {
+        orderList.forEach(order => {
             grandTotal += order.totalAmount;
             if (order.status !== 'shipped') allShipped = false;
             
-            // 換人時，先結算上一位
             if (order.customerId !== lastCustId) {
                 if (lastCustId !== null) {
-                    html += `<tr><td colspan="4" class="text-end fw-bold cust-total-row p-2">${lastCustName} 合計: <span class="fs-5 text-dark">$${customerSubtotal}</span></td></tr>`;
-                    customerSubtotal = 0; // 重置小計
+                    html += `<tr><td colspan="5" class="text-end fw-bold cust-total-row p-2">${lastCustName} 合計: <span class="fs-5 text-dark">$${customerSubtotal}</span></td></tr>`;
+                    customerSubtotal = 0; 
                 }
 
-                // 顯示新客戶標題 (醒目化)
                 if (lastCustId !== null) colorIndex = (colorIndex + 1) % colors.length;
+                const dateStr = order.orderDate.toDate().toLocaleDateString();
                 const statusLabel = order.status === 'shipped' ? '(已出貨)' : '';
                 
                 html += `<tr class="${colors[colorIndex]}">
-                            <td colspan="4" class="py-2">
+                            <td colspan="5" class="py-2">
                                 <i class="bi bi-person-fill fs-5"></i> 
                                 <span class="fs-4 fw-bolder mx-2">${order.customerName}</span>
                                 <small class="fw-normal text-secondary">${statusLabel}</small>
@@ -651,21 +650,26 @@
                 
                 lastCustId = order.customerId;
                 lastCustName = order.customerName;
+                itemIndex = 1; // 換客戶時，項次重新從 1 開始
             }
 
-            // 累加小計
             customerSubtotal += order.totalAmount;
 
-            // 顯示商品
             order.items.forEach(item => {
                 const noteDisplay = item.note ? `<br><small class="text-danger">(${item.note})</small>` : '';
-                html += `<tr><td>${item.name}${noteDisplay}</td><td class="text-center">$${item.price}</td><td class="text-center">x${item.qty}</td><td class="text-end">$${item.price * item.qty}</td></tr>`;
+                html += `<tr>
+                            <td class="text-center text-muted fw-bold">${itemIndex}</td>
+                            <td>${item.name}${noteDisplay}</td>
+                            <td class="text-center">$${item.price}</td>
+                            <td class="text-center">x${item.qty}</td>
+                            <td class="text-end">$${item.price * item.qty}</td>
+                         </tr>`;
+                itemIndex++; // 項次遞增
             });
         });
 
-        // 迴圈結束後，補上最後一位客戶的小計
         if (lastCustId !== null) {
-            html += `<tr><td colspan="4" class="text-end fw-bold cust-total-row p-2">${lastCustName} 合計: <span class="fs-5 text-dark">$${customerSubtotal}</span></td></tr>`;
+            html += `<tr><td colspan="5" class="text-end fw-bold cust-total-row p-2">${lastCustName} 合計: <span class="fs-5 text-dark">$${customerSubtotal}</span></td></tr>`;
         }
         
         html += `</tbody></table>`;
