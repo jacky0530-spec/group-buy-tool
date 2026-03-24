@@ -31,7 +31,6 @@
         .avatar-circle { width: 32px; height: 32px; background-color: #e0e0e0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-size: 0.8rem; color: #555; }
         .qty-highlight { font-family: 'Segoe UI', sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
-        /* 可搜尋下拉選單樣式 */
         .dropdown-menu-custom { max-height: 300px; overflow-y: auto; }
         .dropdown-item-custom { cursor: pointer; padding: 8px 16px; border-bottom: 1px solid #f8f9fa; }
         .dropdown-item-custom:hover, .dropdown-item-custom:active { background-color: var(--theme-light); color: #000; }
@@ -168,16 +167,24 @@
                     </div>
                     
                     <div id="productDetailTableContainer" class="d-none">
-                        <div class="d-flex justify-content-between mb-3 px-2">
-                            <span class="text-muted">總銷量: <strong class="text-danger" id="detailTotalQty">0</strong></span>
-                            <span class="text-muted">人數: <strong class="text-dark" id="detailTotalPeople">0</strong></span>
+                        <div class="d-flex justify-content-between align-items-center mb-3 px-2 border-bottom pb-2">
+                            <div>
+                                <span class="text-muted">總計: <strong class="text-primary fs-5" id="detailTotalQty">0</strong></span>
+                                <span class="text-muted ms-3">人數: <strong class="text-dark fs-5" id="detailTotalPeople">0</strong></span>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" id="togglePendingView">
+                                <label class="form-check-label text-danger fw-bold small" for="togglePendingView">僅看未出貨</label>
+                            </div>
                         </div>
+
                         <div style="max-height: 400px; overflow-y: auto;">
                             <table class="table table-hover table-custom align-middle table-sm">
                                 <thead class="sticky-top">
                                     <tr>
                                         <th>買家</th>
-                                        <th class="text-center">數量</th>
+                                        <th class="text-center" id="qtyColHeader">購買數量</th>
+                                        <th class="text-center">最後購買</th>
                                         <th class="text-end">累計金額</th>
                                     </tr>
                                 </thead>
@@ -220,9 +227,9 @@
                     </div>
                     
                     <div id="custDetailTableContainer" class="d-none">
-                        <div class="d-flex justify-content-between mb-3 px-2 small">
-                            <span class="text-muted">總消費: <strong class="text-dark" id="custTotalRev">$0</strong></span>
-                            <span class="text-muted">總獲利: <strong class="text-success" id="custTotalProfit">$0</strong></span>
+                        <div class="d-flex justify-content-between mb-3 px-2 pb-2 border-bottom small">
+                            <span class="text-muted">總消費: <strong class="text-dark fs-5" id="custTotalRev">$0</strong></span>
+                            <span class="text-muted">總獲利: <strong class="text-success fs-5" id="custTotalProfit">$0</strong></span>
                         </div>
                         <div style="max-height: 400px; overflow-y: auto;">
                             <table class="table table-hover table-custom align-middle table-sm">
@@ -259,9 +266,10 @@
     let rawOrders = [];
     let productsCostMap = {}; 
     let productsNameList = [];
-    let customersList = []; // 客戶名單
+    let customersList = []; 
     let chartInstanceTrend = null;
     let chartInstanceTop = null;
+    let currentSelectedProdId = null; // 記錄目前被選中的商品ID
 
     // DOM - Filters
     const filterMode = document.getElementById('filterMode');
@@ -281,8 +289,10 @@
     const detailTableBody = document.getElementById('detailTableBody');
     const detailTotalQty = document.getElementById('detailTotalQty');
     const detailTotalPeople = document.getElementById('detailTotalPeople');
+    const togglePendingView = document.getElementById('togglePendingView');
+    const qtyColHeader = document.getElementById('qtyColHeader');
 
-    // DOM - Customer Tracker (New)
+    // DOM - Customer Tracker
     const custDropdownBtn = document.getElementById('custDropdownBtn');
     const custSearchInput = document.getElementById('custSearchInput');
     const custDropdownList = document.getElementById('custDropdownList');
@@ -293,10 +303,8 @@
     const custTotalProfit = document.getElementById('custTotalProfit');
 
     async function initData() {
-        // A. 抓商品資料
         const prodSnap = await getDocs(collection(db, "products"));
         productsNameList = [];
-        
         prodSnap.forEach(doc => {
             const data = doc.data();
             productsCostMap[doc.id] = data.cost || 0;
@@ -304,12 +312,10 @@
         });
         renderProdDropdown(productsNameList);
 
-        // B. 抓客戶資料 (為了下拉選單)
         const custSnap = await getDocs(collection(db, "customers"));
         customersList = custSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderCustDropdown(customersList);
 
-        // C. 抓所有訂單
         const orderSnap = await getDocs(query(collection(db, "orders"), orderBy("orderDate", "asc")));
         rawOrders = orderSnap.docs.map(doc => ({
             id: doc.id,
@@ -334,6 +340,8 @@
                 prodDropdownBtn.querySelector('span').textContent = p.name;
                 prodSearchInput.value = '';
                 renderProdDropdown(productsNameList);
+                
+                currentSelectedProdId = p.id;
                 analyzeProductBuyers(p.id);
             };
             prodDropdownList.appendChild(div);
@@ -359,7 +367,7 @@
                 custDropdownBtn.querySelector('span').textContent = c.name;
                 custSearchInput.value = '';
                 renderCustDropdown(customersList);
-                analyzeCustomerOrders(c.id); // 觸發分析
+                analyzeCustomerOrders(c.id);
             };
             custDropdownList.appendChild(div);
         });
@@ -369,114 +377,137 @@
         renderCustDropdown(customersList.filter(c => c.name.toLowerCase().includes(k) || (c.lineNick && c.lineNick.toLowerCase().includes(k))));
     });
 
-    // --- 客戶訂單利潤分析核心邏輯 ---
+    // --- 客戶訂單利潤分析邏輯 ---
     function analyzeCustomerOrders(custId) {
         if (!custId) return;
-        
-        let totalRev = 0;
-        let totalProfit = 0;
-        let history = [];
+        let totalRev = 0, totalProfit = 0, history = [];
 
-        // 搜尋此客戶的所有訂單
         rawOrders.forEach(order => {
             if (order.customerId === custId) {
                 let orderCost = 0;
                 if(order.items) {
-                    order.items.forEach(item => {
-                        const cost = productsCostMap[item.id] || 0;
-                        orderCost += cost * item.qty;
-                    });
+                    order.items.forEach(item => { orderCost += (productsCostMap[item.id] || 0) * item.qty; });
                 }
                 const profit = order.totalAmount - orderCost;
-                
                 totalRev += order.totalAmount;
                 totalProfit += profit;
-
-                history.push({
-                    date: order.dateObj,
-                    rev: order.totalAmount,
-                    cost: orderCost,
-                    profit: profit
-                });
+                history.push({ date: order.dateObj, rev: order.totalAmount, cost: orderCost, profit: profit });
             }
         });
 
-        // 渲染結果
         custDetailInfo.classList.add('d-none');
         custDetailTableContainer.classList.remove('d-none');
         custTotalRev.innerText = `$${totalRev.toLocaleString()}`;
         custTotalProfit.innerText = `$${totalProfit.toLocaleString()}`;
-        
         custTableBody.innerHTML = '';
+
         if(history.length === 0) {
-            custTableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">無訂單紀錄</td></tr>';
-            return;
+            custTableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">無訂單紀錄</td></tr>'; return;
         }
-
-        // 依日期倒序 (新->舊)
         history.sort((a,b) => b.date - a.date);
-
         history.forEach(h => {
             const profitClass = h.profit >= 0 ? 'text-success' : 'text-danger';
-            custTableBody.innerHTML += `
-                <tr>
-                    <td class="small">${h.date.toLocaleDateString()}</td>
-                    <td class="text-end fw-bold">$${h.rev}</td>
-                    <td class="text-end text-secondary small">$${h.cost}</td>
-                    <td class="text-end ${profitClass} fw-bold">$${h.profit}</td>
-                </tr>
-            `;
+            custTableBody.innerHTML += `<tr><td class="small">${h.date.toLocaleDateString()}</td><td class="text-end fw-bold">$${h.rev}</td><td class="text-end text-secondary small">$${h.cost}</td><td class="text-end ${profitClass} fw-bold">$${h.profit}</td></tr>`;
         });
     }
 
-    // --- 單一商品買家追蹤邏輯 ---
+    // --- 升級版：單一商品買家追蹤邏輯 (包含未出貨過濾) ---
+    togglePendingView.addEventListener('change', () => {
+        if (currentSelectedProdId) {
+            analyzeProductBuyers(currentSelectedProdId); // 切換時重新分析渲染
+        }
+    });
+
     function analyzeProductBuyers(prodId) {
         if (!prodId) return;
         const buyersMap = {}; 
         let grandTotalQty = 0;
+        let grandPendingQty = 0;
+        const isPendingOnly = togglePendingView.checked;
 
+        // 掃描歷史紀錄
         rawOrders.forEach(order => {
             if(!order.items) return;
             const targetItem = order.items.find(i => i.id === prodId);
+            
             if(targetItem) {
                 const cName = order.customerName;
                 const qty = targetItem.qty;
                 const amount = targetItem.price * qty;
+                const isPending = order.status !== 'shipped';
+
                 if(!buyersMap[cName]) {
-                    buyersMap[cName] = { qty: 0, lastDate: order.dateObj, totalSpent: 0 };
+                    buyersMap[cName] = { qty: 0, pendingQty: 0, lastDate: order.dateObj, totalSpent: 0 };
                 }
+                
                 buyersMap[cName].qty += qty;
                 buyersMap[cName].totalSpent += amount;
-                if (order.dateObj > buyersMap[cName].lastDate) buyersMap[cName].lastDate = order.dateObj;
+                
+                if (isPending) {
+                    buyersMap[cName].pendingQty += qty;
+                    grandPendingQty += qty;
+                }
+
+                if (order.dateObj > buyersMap[cName].lastDate) {
+                    buyersMap[cName].lastDate = order.dateObj;
+                }
+                
                 grandTotalQty += qty;
             }
         });
 
-        const buyersArray = Object.entries(buyersMap).map(([name, data]) => ({ name, ...data }));
-        buyersArray.sort((a, b) => b.qty - a.qty);
+        let buyersArray = Object.entries(buyersMap).map(([name, data]) => ({ name, ...data }));
+        
+        // 根據 Toggle 狀態過濾與排序
+        if (isPendingOnly) {
+            buyersArray = buyersArray.filter(b => b.pendingQty > 0); // 只留有欠貨的
+            buyersArray.sort((a, b) => b.pendingQty - a.pendingQty); // 依欠貨量排序
+            qtyColHeader.innerText = "未出數量";
+            qtyColHeader.classList.replace('text-primary', 'text-danger');
+            detailTotalQty.classList.replace('text-primary', 'text-danger');
+        } else {
+            buyersArray.sort((a, b) => b.qty - a.qty); // 依總量排序
+            qtyColHeader.innerText = "購買總數";
+            qtyColHeader.classList.replace('text-danger', 'text-primary');
+            detailTotalQty.classList.replace('text-danger', 'text-primary');
+        }
 
         productDetailInfo.classList.add('d-none');
         productDetailTableContainer.classList.remove('d-none');
-        detailTotalQty.innerText = grandTotalQty;
+        
+        // 更新上方數字
+        detailTotalQty.innerText = isPendingOnly ? grandPendingQty : grandTotalQty;
         detailTotalPeople.innerText = buyersArray.length;
         detailTableBody.innerHTML = '';
 
         if(buyersArray.length === 0) {
-            detailTableBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">無銷售紀錄</td></tr>'; return;
+            const msg = isPendingOnly ? '目前沒有未出貨的訂單' : '無銷售紀錄';
+            detailTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">${msg}</td></tr>`; return;
         }
 
         buyersArray.forEach(buyer => {
             const avatarLetter = buyer.name.charAt(0);
+            const displayQty = isPendingOnly ? buyer.pendingQty : buyer.qty;
+            const qtyColor = isPendingOnly ? 'text-danger' : 'text-primary';
+            
             detailTableBody.innerHTML += `
                 <tr>
-                    <td><div class="d-flex align-items-center"><span class="avatar-circle">${avatarLetter}</span><span class="fw-bold">${buyer.name}</span></div></td>
-                    <td class="text-center"><span class="fs-5 fw-bold text-primary qty-highlight">${buyer.qty}</span></td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <span class="avatar-circle">${avatarLetter}</span>
+                            <span class="fw-bold fs-5">${buyer.name}</span>
+                        </div>
+                    </td>
+                    <td class="text-center">
+                        <span class="fs-4 fw-bolder ${qtyColor} qty-highlight">${displayQty}</span>
+                    </td>
+                    <td class="text-center text-muted small">${buyer.lastDate.toLocaleDateString()}</td>
                     <td class="text-end fw-medium">$${buyer.totalSpent}</td>
                 </tr>`;
         });
     }
 
-    // --- Dashboard Core (不變) ---
+    // --- Dashboard Core ---
     filterMode.addEventListener('change', () => {
         const mode = filterMode.value;
         monthPicker.classList.add('d-none');
