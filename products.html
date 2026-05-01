@@ -36,7 +36,7 @@
         
         /* 買家列表樣式 */
         .buyer-item { background-color: #fff; border: 1px solid #dee2e6; border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .buyer-item input { width: 70px; text-align: center; font-weight: bold; }
+        .buyer-qty-input { width: 65px; text-align: center; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -90,16 +90,17 @@
                             <input type="text" class="form-control" id="pNote" placeholder="例如：需冷凍、易碎品...">
                         </div>
 
-                        <!-- ================= 新增：多客開單區塊 ================= -->
+                        <!-- 多客開單區塊 -->
                         <div class="mt-4 pt-3 border-top">
                             <div class="mb-2 fw-bold text-dark"><i class="bi bi-cart-plus-fill text-success me-1"></i>一鍵批次開單 (選填)</div>
                             <div class="bg-light p-3 rounded mb-3 border">
                                 <div class="mb-3">
                                     <label class="form-label text-muted small">1. 搜尋並加入客戶</label>
                                     <div class="dropdown">
+                                        <!-- 加入 data-bs-auto-close="outside" 讓選單在點擊選項時不會關閉，方便連續選人 -->
                                         <button class="btn btn-outline-primary btn-sm w-100 text-start d-flex justify-content-between align-items-center dropdown-toggle bg-white" 
-                                                type="button" id="custDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
-                                            <span>點擊搜尋客戶...</span>
+                                                type="button" id="custDropdownBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                                            <span>點擊搜尋並加入客戶...</span>
                                         </button>
                                         <div class="dropdown-menu w-100 p-0 dropdown-menu-scroll" aria-labelledby="custDropdownBtn">
                                             <div class="search-box-container" onclick="event.stopPropagation()">
@@ -115,14 +116,13 @@
                                         <label class="form-label text-muted small mb-0">2. 開單名單與數量</label>
                                         <span class="badge bg-secondary" id="buyerCountBadge">0 人</span>
                                     </div>
-                                    <!-- 買家列表容器 -->
                                     <div id="selectedBuyersContainer" style="max-height: 200px; overflow-y: auto;">
+                                        <!-- JS 會動態將買家插入此處 -->
                                         <div class="text-center text-muted small py-3 bg-white border rounded" id="emptyBuyersText">尚未加入任何客戶</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <!-- ================= 區塊結束 ================= -->
 
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-theme btn-lg" id="submitBtn">儲存資料</button>
@@ -162,6 +162,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, updateDoc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -173,9 +174,7 @@
     let isEditing = false;
     let allProducts = [];
     let allCustomers = []; 
-    
-    // 新增：儲存多位買家的陣列 [{id: '...', name: '...', qty: 1}, ...]
-    let selectedBuyers = []; 
+    let selectedBuyers = []; // 儲存多位買家的陣列
 
     const form = document.getElementById('productForm');
     const submitBtn = document.getElementById('submitBtn');
@@ -185,7 +184,6 @@
     const custSearchInput = document.getElementById('custSearchInput');
     const custListContainer = document.getElementById('custListContainer');
     const selectedBuyersContainer = document.getElementById('selectedBuyersContainer');
-    const emptyBuyersText = document.getElementById('emptyBuyersText');
     const buyerCountBadge = document.getElementById('buyerCountBadge');
 
     // 初始化
@@ -200,20 +198,24 @@
     function renderCustList(list) {
         custListContainer.innerHTML = '';
         if(list.length === 0) {
-            custListContainer.innerHTML = '<div class="text-muted p-2 text-center small">找不到客戶</div>';
+            custListContainer.innerHTML = '<div class="text-muted p-3 text-center small">找不到客戶</div>';
             return;
         }
+        
         list.forEach(c => {
             const div = document.createElement('div');
             div.className = 'dropdown-item-custom';
-            const label = c.lineNick ? `${c.name} (${c.lineNick})` : c.name;
             div.innerHTML = `<strong class="text-dark">${c.name}</strong>${c.lineNick ? '<small class="text-primary ms-1">'+c.lineNick+'</small>' : ''}`;
             
-            div.onclick = () => {
-                addBuyer(c); // 加入買家名單
-                custSearchInput.value = ''; 
-                renderCustList(allCustomers); // 重置列表
-            };
+            // 綁定點擊事件
+            div.addEventListener('click', (e) => {
+                e.preventDefault();
+                addBuyer(c); 
+                custSearchInput.value = ''; // 點選後清空搜尋框，方便找下一個
+                renderCustList(allCustomers); // 重置為全部客戶列表
+                custSearchInput.focus(); // 讓焦點回到搜尋框，方便連續打字
+            });
+            
             custListContainer.appendChild(div);
         });
     }
@@ -226,7 +228,6 @@
 
     // --- 買家名單操作邏輯 ---
     function addBuyer(customer) {
-        // 檢查是否已存在名單中
         const existBuyer = selectedBuyers.find(b => b.id === customer.id);
         if (existBuyer) {
             existBuyer.qty += 1; // 存在就直接數量+1
@@ -250,48 +251,35 @@
         selectedBuyers[index].qty = Number(newQty);
     }
 
+    // 將名單渲染到畫面上 (穩定重構版本)
+    window.handleRemoveBuyer = removeBuyer;
+    window.handleUpdateQty = updateBuyerQty;
+
     function renderBuyersUI() {
         buyerCountBadge.innerText = `${selectedBuyers.length} 人`;
 
         if (selectedBuyers.length === 0) {
-            emptyBuyersText.style.display = 'block';
-            // 清除除了空提示以外的節點
-            Array.from(selectedBuyersContainer.children).forEach(child => {
-                if (child.id !== 'emptyBuyersText') selectedBuyersContainer.removeChild(child);
-            });
+            selectedBuyersContainer.innerHTML = `<div class="text-center text-muted small py-3 bg-white border rounded" id="emptyBuyersText">尚未加入任何客戶</div>`;
             return;
         }
 
-        emptyBuyersText.style.display = 'none';
-        
-        // 重新渲染清單
-        Array.from(selectedBuyersContainer.children).forEach(child => {
-            if (child.id !== 'emptyBuyersText') selectedBuyersContainer.removeChild(child);
-        });
-
+        let html = '';
         selectedBuyers.forEach((buyer, index) => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'buyer-item';
-            
-            itemDiv.innerHTML = `
-                <span class="fw-bold text-dark"><i class="bi bi-person-fill text-primary me-1"></i>${buyer.name}</span>
-                <div class="d-flex align-items-center">
-                    <span class="text-muted small me-2">數量</span>
-                    <input type="number" class="form-control form-control-sm me-2" value="${buyer.qty}" min="1">
-                    <button type="button" class="btn btn-sm btn-outline-danger" title="移除"><i class="bi bi-x-lg"></i></button>
+            html += `
+                <div class="buyer-item shadow-sm">
+                    <span class="fw-bold text-dark"><i class="bi bi-person-fill text-primary me-1"></i>${buyer.name}</span>
+                    <div class="d-flex align-items-center">
+                        <span class="text-muted small me-2">數量</span>
+                        <input type="number" class="form-control form-control-sm buyer-qty-input me-2" value="${buyer.qty}" min="1" onchange="window.handleUpdateQty(${index}, this.value)">
+                        <button type="button" class="btn btn-sm btn-outline-danger" title="移除" onclick="window.handleRemoveBuyer(${index})"><i class="bi bi-x-lg"></i></button>
+                    </div>
                 </div>
             `;
-
-            // 綁定輸入數量事件
-            const qtyInput = itemDiv.querySelector('input');
-            qtyInput.addEventListener('change', (e) => updateBuyerQty(index, e.target.value));
-
-            // 綁定移除按鈕事件
-            const removeBtn = itemDiv.querySelector('button');
-            removeBtn.addEventListener('click', () => removeBuyer(index));
-
-            selectedBuyersContainer.appendChild(itemDiv);
         });
+        selectedBuyersContainer.innerHTML = html;
+        
+        // 自動捲動到最底部，讓使用者看到最新加入的人
+        selectedBuyersContainer.scrollTop = selectedBuyersContainer.scrollHeight;
     }
 
     // --- 表單送出邏輯 ---
@@ -309,7 +297,6 @@
         submitBtn.innerText = "處理中...";
 
         try {
-            // 防呆檢查
             const q = query(collection(db, "products"), where("name", "==", name));
             const snapshot = await getDocs(q);
             const isDuplicate = snapshot.docs.some(doc => doc.id !== editId);
@@ -337,7 +324,6 @@
             
             // 2. 批次建立訂單
             if (selectedBuyers.length > 0) {
-                // 使用 Promise.all 同時處理多張訂單，提升速度
                 const orderPromises = selectedBuyers.map(buyer => {
                     const totalAmount = price * buyer.qty;
                     const orderItems = [{
@@ -361,7 +347,7 @@
                 await Promise.all(orderPromises);
                 alert(`商品儲存成功！已同時幫 ${selectedBuyers.length} 位客戶開立訂單。`);
             } else {
-                // alert("商品儲存成功");
+                // 純建檔不顯示彈跳視窗干擾操作，只會重置表單
             }
 
             resetForm();
