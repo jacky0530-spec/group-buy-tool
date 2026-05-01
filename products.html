@@ -27,6 +27,16 @@
         .btn-theme { background-color: var(--theme-color); color: white; border: none; }
         .btn-theme:hover { background-color: var(--theme-dark); color: white; }
         .table-hover tbody tr:hover { background-color: var(--theme-light); }
+
+        .dropdown-menu-scroll { max-height: 250px; overflow-y: auto; }
+        .dropdown-item-custom { cursor: pointer; padding: 10px 15px; border-bottom: 1px solid #f1f1f1; transition: background 0.2s; }
+        .dropdown-item-custom:hover { background-color: var(--theme-light); color: var(--theme-dark); }
+        .dropdown-item-custom small { display: block; color: #888; font-size: 0.85rem; margin-top: 2px; }
+        .search-box-container { padding: 10px; background-color: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 10; }
+        
+        /* 買家列表樣式 */
+        .buyer-item { background-color: #fff; border: 1px solid #dee2e6; border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .buyer-item input { width: 70px; text-align: center; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -50,6 +60,7 @@
 
 <div class="container">
     <div class="row">
+        <!-- 左側：輸入表單 -->
         <div class="col-md-4 mb-4">
             <div class="card shadow-sm">
                 <div class="card-header card-header-custom">
@@ -79,8 +90,42 @@
                             <input type="text" class="form-control" id="pNote" placeholder="例如：需冷凍、易碎品...">
                         </div>
 
+                        <!-- ================= 新增：多客開單區塊 ================= -->
+                        <div class="mt-4 pt-3 border-top">
+                            <div class="mb-2 fw-bold text-dark"><i class="bi bi-cart-plus-fill text-success me-1"></i>一鍵批次開單 (選填)</div>
+                            <div class="bg-light p-3 rounded mb-3 border">
+                                <div class="mb-3">
+                                    <label class="form-label text-muted small">1. 搜尋並加入客戶</label>
+                                    <div class="dropdown">
+                                        <button class="btn btn-outline-primary btn-sm w-100 text-start d-flex justify-content-between align-items-center dropdown-toggle bg-white" 
+                                                type="button" id="custDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <span>點擊搜尋客戶...</span>
+                                        </button>
+                                        <div class="dropdown-menu w-100 p-0 dropdown-menu-scroll" aria-labelledby="custDropdownBtn">
+                                            <div class="search-box-container" onclick="event.stopPropagation()">
+                                                <input type="text" class="form-control form-control-sm" id="custSearchInput" placeholder="搜尋姓名或Line..." autocomplete="off">
+                                            </div>
+                                            <div id="custListContainer"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-1">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <label class="form-label text-muted small mb-0">2. 開單名單與數量</label>
+                                        <span class="badge bg-secondary" id="buyerCountBadge">0 人</span>
+                                    </div>
+                                    <!-- 買家列表容器 -->
+                                    <div id="selectedBuyersContainer" style="max-height: 200px; overflow-y: auto;">
+                                        <div class="text-center text-muted small py-3 bg-white border rounded" id="emptyBuyersText">尚未加入任何客戶</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- ================= 區塊結束 ================= -->
+
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-theme" id="submitBtn">新增商品</button>
+                            <button type="submit" class="btn btn-theme btn-lg" id="submitBtn">儲存資料</button>
                             <button type="button" class="btn btn-secondary d-none" id="cancelBtn">取消編輯</button>
                         </div>
                     </form>
@@ -88,6 +133,7 @@
             </div>
         </div>
 
+        <!-- 右側：列表 -->
         <div class="col-md-8">
             <div class="card shadow-sm">
                 <div class="card-header card-header-custom d-flex justify-content-between align-items-center">
@@ -100,13 +146,15 @@
                             <tr>
                                 <th class="ps-4">名稱</th>
                                 <th>備註</th>
-                                <th>銷售價</th> <th>批發價</th>
+                                <th>銷售價</th>
+                                <th>批發價</th>
                                 <th>毛利</th>
                                 <th class="text-end pe-4">操作</th>
                             </tr>
                         </thead>
                         <tbody id="productTableBody">
-                            </tbody>
+                            <!-- JS 渲染 -->
+                        </tbody>
                     </table>
                 </div>
             </div>
@@ -124,11 +172,129 @@
 
     let isEditing = false;
     let allProducts = [];
+    let allCustomers = []; 
+    
+    // 新增：儲存多位買家的陣列 [{id: '...', name: '...', qty: 1}, ...]
+    let selectedBuyers = []; 
+
     const form = document.getElementById('productForm');
     const submitBtn = document.getElementById('submitBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const formTitle = document.getElementById('formTitle');
 
+    const custSearchInput = document.getElementById('custSearchInput');
+    const custListContainer = document.getElementById('custListContainer');
+    const selectedBuyersContainer = document.getElementById('selectedBuyersContainer');
+    const emptyBuyersText = document.getElementById('emptyBuyersText');
+    const buyerCountBadge = document.getElementById('buyerCountBadge');
+
+    // 初始化
+    async function initData() {
+        await loadProducts();
+        const snapCust = await getDocs(query(collection(db, "customers"), orderBy("joinedAt", "desc")));
+        allCustomers = snapCust.docs.map(d => ({id: d.id, ...d.data()}));
+        renderCustList(allCustomers);
+    }
+
+    // --- 客戶搜尋下拉邏輯 ---
+    function renderCustList(list) {
+        custListContainer.innerHTML = '';
+        if(list.length === 0) {
+            custListContainer.innerHTML = '<div class="text-muted p-2 text-center small">找不到客戶</div>';
+            return;
+        }
+        list.forEach(c => {
+            const div = document.createElement('div');
+            div.className = 'dropdown-item-custom';
+            const label = c.lineNick ? `${c.name} (${c.lineNick})` : c.name;
+            div.innerHTML = `<strong class="text-dark">${c.name}</strong>${c.lineNick ? '<small class="text-primary ms-1">'+c.lineNick+'</small>' : ''}`;
+            
+            div.onclick = () => {
+                addBuyer(c); // 加入買家名單
+                custSearchInput.value = ''; 
+                renderCustList(allCustomers); // 重置列表
+            };
+            custListContainer.appendChild(div);
+        });
+    }
+
+    custSearchInput.addEventListener('input', (e) => {
+        const key = e.target.value.toLowerCase();
+        const filtered = allCustomers.filter(c => c.name.toLowerCase().includes(key) || (c.lineNick && c.lineNick.toLowerCase().includes(key)));
+        renderCustList(filtered);
+    });
+
+    // --- 買家名單操作邏輯 ---
+    function addBuyer(customer) {
+        // 檢查是否已存在名單中
+        const existBuyer = selectedBuyers.find(b => b.id === customer.id);
+        if (existBuyer) {
+            existBuyer.qty += 1; // 存在就直接數量+1
+        } else {
+            selectedBuyers.push({
+                id: customer.id,
+                name: customer.name,
+                qty: 1
+            });
+        }
+        renderBuyersUI();
+    }
+
+    function removeBuyer(index) {
+        selectedBuyers.splice(index, 1);
+        renderBuyersUI();
+    }
+
+    function updateBuyerQty(index, newQty) {
+        if (newQty < 1) newQty = 1;
+        selectedBuyers[index].qty = Number(newQty);
+    }
+
+    function renderBuyersUI() {
+        buyerCountBadge.innerText = `${selectedBuyers.length} 人`;
+
+        if (selectedBuyers.length === 0) {
+            emptyBuyersText.style.display = 'block';
+            // 清除除了空提示以外的節點
+            Array.from(selectedBuyersContainer.children).forEach(child => {
+                if (child.id !== 'emptyBuyersText') selectedBuyersContainer.removeChild(child);
+            });
+            return;
+        }
+
+        emptyBuyersText.style.display = 'none';
+        
+        // 重新渲染清單
+        Array.from(selectedBuyersContainer.children).forEach(child => {
+            if (child.id !== 'emptyBuyersText') selectedBuyersContainer.removeChild(child);
+        });
+
+        selectedBuyers.forEach((buyer, index) => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'buyer-item';
+            
+            itemDiv.innerHTML = `
+                <span class="fw-bold text-dark"><i class="bi bi-person-fill text-primary me-1"></i>${buyer.name}</span>
+                <div class="d-flex align-items-center">
+                    <span class="text-muted small me-2">數量</span>
+                    <input type="number" class="form-control form-control-sm me-2" value="${buyer.qty}" min="1">
+                    <button type="button" class="btn btn-sm btn-outline-danger" title="移除"><i class="bi bi-x-lg"></i></button>
+                </div>
+            `;
+
+            // 綁定輸入數量事件
+            const qtyInput = itemDiv.querySelector('input');
+            qtyInput.addEventListener('change', (e) => updateBuyerQty(index, e.target.value));
+
+            // 綁定移除按鈕事件
+            const removeBtn = itemDiv.querySelector('button');
+            removeBtn.addEventListener('click', () => removeBuyer(index));
+
+            selectedBuyersContainer.appendChild(itemDiv);
+        });
+    }
+
+    // --- 表單送出邏輯 ---
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -140,9 +306,10 @@
 
         if(!name) return;
         submitBtn.disabled = true;
+        submitBtn.innerText = "處理中...";
 
         try {
-            // 防呆
+            // 防呆檢查
             const q = query(collection(db, "products"), where("name", "==", name));
             const snapshot = await getDocs(q);
             const isDuplicate = snapshot.docs.some(doc => doc.id !== editId);
@@ -150,21 +317,54 @@
             if (isDuplicate) {
                 alert(`錯誤：商品名稱「${name}」已經存在！`);
                 submitBtn.disabled = false;
+                submitBtn.innerText = isEditing ? "確認更新" : "儲存資料";
                 return;
             }
 
+            let savedProdId = editId;
+
+            // 1. 儲存/更新商品
             if (isEditing) {
                 await updateDoc(doc(db, "products", editId), {
                     name, cost, price, note, updatedAt: new Date()
                 });
-                resetForm();
             } else {
-                await addDoc(collection(db, "products"), {
+                const docRef = await addDoc(collection(db, "products"), {
                     name, cost, price, note, createdAt: new Date()
                 });
-                form.reset();
+                savedProdId = docRef.id; 
             }
             
+            // 2. 批次建立訂單
+            if (selectedBuyers.length > 0) {
+                // 使用 Promise.all 同時處理多張訂單，提升速度
+                const orderPromises = selectedBuyers.map(buyer => {
+                    const totalAmount = price * buyer.qty;
+                    const orderItems = [{
+                        id: savedProdId,
+                        name: name,
+                        price: price,
+                        qty: buyer.qty,
+                        note: note
+                    }];
+
+                    return addDoc(collection(db, "orders"), {
+                        customerId: buyer.id,
+                        customerName: buyer.name,
+                        items: orderItems,
+                        totalAmount: totalAmount,
+                        orderDate: new Date(),
+                        status: 'pending' // 預設未出貨
+                    });
+                });
+
+                await Promise.all(orderPromises);
+                alert(`商品儲存成功！已同時幫 ${selectedBuyers.length} 位客戶開立訂單。`);
+            } else {
+                // alert("商品儲存成功");
+            }
+
+            resetForm();
             await loadProducts();
             
         } catch (error) {
@@ -188,7 +388,6 @@
         data.forEach(item => {
             const profit = item.price - item.cost;
             const profitClass = profit >= 0 ? 'text-success' : 'text-danger';
-            
             const noteDisplay = item.note ? `<span class="badge bg-secondary" title="${item.note}"><i class="bi bi-info-circle"></i> ${item.note}</span>` : '<span class="text-muted small">-</span>';
             
             const tr = document.createElement('tr');
@@ -232,14 +431,19 @@
         isEditing = false;
         form.reset();
         document.getElementById('editId').value = '';
+        
         formTitle.textContent = "新增商品";
-        submitBtn.textContent = "新增商品";
+        submitBtn.textContent = "儲存資料";
         submitBtn.classList.replace('btn-warning', 'btn-theme');
         cancelBtn.classList.add('d-none');
+        
+        // 重置多客開單列表
+        selectedBuyers = [];
+        renderBuyersUI();
     }
 
     async function deleteProduct(id) {
-        if(confirm("確定要刪除這個商品嗎？")) {
+        if(confirm("確定要刪除這個商品嗎？\n注意：這不會影響已經開立的訂單。")) {
             await deleteDoc(doc(db, "products", id));
             loadProducts();
         }
@@ -251,7 +455,7 @@
         renderTable(filtered);
     });
 
-    loadProducts();
+    initData();
 </script>
 </body>
 </html>
